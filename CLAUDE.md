@@ -12,27 +12,34 @@ That distinction is the whole point of the tool. A household can hold $3M and st
 
 ## Stack
 
-- React (single file, hooks, no router, no state library)
+- React 18 + Vite + TypeScript (`strict` mode), built as a static site and deployed to GitHub Pages
 - `recharts` for charts
 - `lucide-react` for icons
-- Inline styles, no CSS framework — a `colors` object at the top is the design system
+- CSS Modules for styling (`*.module.css`, co-located with each component) plus global design tokens as CSS custom properties in `src/index.css`. A handful of genuinely per-instance dynamic values (the Toggle `accent` prop, a scenario's data-driven color) are still set inline via CSS custom properties rather than static classes — that's the intended exception, not leftover inline styling. `src/lib/colors.ts` is a *second* copy of the same palette values, kept in sync by hand, because JS-only consumers (recharts stroke/fill props, `Scenario.color`) need real color strings, not CSS classes.
 - No backend, no build-time data, everything client-side
 - Persistence via a three-tier storage adapter (see below)
+- `vitest` for unit tests (`npm test`), targeting the pure logic in `src/lib/`; `npm run typecheck` runs `tsc --noEmit` standalone (also runs before `npm run build`)
 
 ## Architecture
 
-It's one file. That's deliberate for now but is the first thing to split if the project grows. Reading order:
+Originally a single file (`scenario-modeler.jsx`, kept at the repo root for reference/artifact-paste use — see note below); the simulation, tax, mortgage, and storage logic has since been split out of the React tree into plain TypeScript modules under `src/lib/` so they're unit-testable without rendering anything. Layout:
 
-1. **Tax constants and helpers** (top) — 2026 brackets, `federalTaxSingle`, `conversionTax`, `grossUpTraditional`, `computeNetForPerson`, `swrForHorizon`
-2. **`storage` adapter** — environment-detecting persistence
-3. **`DEFAULTS`** — every input's starting value in one object
-4. **Presentational components** — `Field`, `Toggle`, `Readout`, `GroupHeader`, `ScenarioCard`
-5. **`ScenarioModeler`** — all state, the load/save effects, and the two `useMemo` blocks that do the real work
-6. **JSX** — input panels, two charts, readout row, long methodology disclaimer
+- `src/lib/taxYears2026.ts` — 2026 federal bracket/threshold constants. A new tax year gets its own `taxYearsYYYY.ts` rather than editing this in place.
+- `src/lib/tax.ts` — `federalTaxSingle`, `conversionTax`, `grossUpTraditional`, `computeNetForPerson`
+- `src/lib/swr.ts` — `swrForHorizon`, the SWR-vs-horizon anchor table
+- `src/lib/mortgage.ts` — `monthlyPI`, `remainingBalance`, `computeMortgageSnapshot` (the live "at purchase" panel), `buildHousingSchedule` (the per-year housing cost/equity array the simulation consumes)
+- `src/lib/simulate.ts` — `simulateScenario(params, housingByYear, downshift)`, the core year-by-year engine (see below)
+- `src/lib/storage.ts`, `src/lib/format.ts`, `src/lib/colors.ts`, `src/lib/defaults.ts` — storage adapter, `fmtMoney`, design tokens, `DEFAULTS`
+- `src/types.ts` — shared interfaces (`SimParams`, `Scenario`, `SimResult`, etc.) used across `src/lib/*`, the components, and the tests
+- `src/components/` — presentational pieces: `Field`, `Toggle`, `Readout`, `GroupHeader`, `ScenarioCard`, `Markers` (chart dot shapes), each with a co-located `*.module.css`
+- `src/ScenarioModeler.tsx` — all React state, the load/save effects, and the `useMemo` blocks that call into `src/lib/*` and assemble the JSX; styled via `ScenarioModeler.module.css`
+- `test/` — vitest specs, one file per `src/lib/*` module, plus `simulate.test.ts` exercising the invariants below directly
+
+**scenario-modeler.jsx at the repo root is now stale** relative to `src/` — it was the pre-split monolith and is kept only in case a single-file artifact-paste deploy is needed again. Treat `src/` as the source of truth; don't edit the root file expecting it to affect the built app.
 
 ### The core simulation
 
-Inside the main `useMemo`, `simulate(year1, pct1, retireYear1, year2, pct2, retireYear2)` runs one scenario year-by-year and returns `{ rows, firstShortfallYear, fiYear, fiSwr, totalConverted, totalWithdrawalTax }`. It's called once for the baseline and once per enabled scenario.
+`simulateScenario(params, housingByYear, downshift)` in `src/lib/simulate.ts` runs one scenario year-by-year and returns `{ rows, firstShortfallYear, fiYear, fiSwr, totalConverted, totalWithdrawalTax }`. `ScenarioModeler`'s main `useMemo` builds `housingByYear` once via `buildHousingSchedule` and calls `simulateScenario` once for the baseline (downshift years all beyond the horizon) and once per enabled scenario.
 
 Per-year sequence, and the order matters:
 
@@ -86,11 +93,15 @@ These were all real bugs found by numeric audit, not by reading the code. Preser
 6. **Social Security is asymmetric** — FICA is paid, benefits are never received.
 7. Missing inputs: salary growth, college/529, one-time events, ACA premium modeling, state moves, mortgage interest deduction, emergency-fund floor, Rule of 55, 72(t)/SEPP.
 
+## Known bugs (tracked, not yet fixed)
+
+- **Home equity/LTV mix nominal mortgage balance with real home value.** `buildHousingSchedule` in `src/lib/mortgage.ts` deflates P&I to real dollars (per the mortgage-deflation invariant above) but does not deflate `remainingBalance`'s output before subtracting it from `homeValue` for `equity`, or before dividing it into `homeValue` for the PMI `ltv` check. Since the loan balance is a nominal-dollar quantity and `homeValue` is real, this understates displayed home equity (by ~$56K–$117K over 5–20 years at this app's defaults) and over-extends the PMI window at low down payments. Fix: multiply `balance` by the same `deflator` used for P&I before computing `ltv` and `equity` (not before computing the PMI dollar amount itself, which is correctly nominal). `test/mortgage.test.ts` has a test pinned to the current (buggy) behavior — update it in the same change that fixes this.
+
 ## Working conventions
 
 - **Verify numerically, don't eyeball.** Every bug in the invariants list was invisible on inspection and obvious under a standalone script. When changing simulation logic, extract it to a scratch file and print a year-by-year table.
-- **There are no tests yet. Adding them is high-value.** Start with: mortgage balance reaches exactly 0 at term; withdrawal waterfall ordering; known-good tax cases; FI threshold ignores one-time costs.
-- **Tax constants are inline and should be extracted** to a versioned `taxYears.js` so annual updates are a data edit.
+- **Tests live in `test/`, run with `npm test`.** Coverage: mortgage balance reaches exactly 0 at term, withdrawal waterfall ordering, known-good tax cases, FI threshold ignores one-time costs, mid-year growth convention, zero-balance clamping. Add a test alongside any change to `src/lib/*` — that's the whole point of the split.
+- Tax constants live in `src/lib/taxYears2026.ts`, versioned by year — an annual update is a new `taxYearsYYYY.ts` file, not an edit to this one.
 - **When adding an input:** it must be added in six places — `DEFAULTS`, a `useState`, the load effect, the save payload *and* its dependency array, `handleReset`, and the main `useMemo` dependency array. Missing the last one causes stale-render bugs that look like the math is wrong.
 - **Keep the methodology disclaimer current.** It's long on purpose. If a change alters what the model assumes, the disclaimer changes in the same commit.
 - Prefer honesty about limitations over impressive-looking output. The tool's value is that it tells the truth about a tradeoff, including when the answer is "this doesn't matter."

@@ -1,0 +1,244 @@
+.page {
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  font-family: var(--font-body);
+  padding: 24px 16px;
+  background-image:
+    linear-gradient(var(--color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.container {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.headerRow {
+  margin-bottom: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.eyebrowAmber {
+  color: var(--color-amber);
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 26px;
+  margin: 4px 0 0;
+}
+
+.subtitle {
+  color: var(--color-subtext);
+  font-size: 14px;
+  margin-top: 4px;
+  max-width: 620px;
+}
+
+.mintText {
+  color: var(--color-mint);
+}
+
+.coralText {
+  color: var(--color-coral);
+}
+
+.resetButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-panel-border);
+  background: transparent;
+  color: var(--color-subtext);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.panelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 22px;
+}
+
+.panelGridNarrow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 22px;
+}
+
+.fieldStack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fieldStackTight {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toggleSpacing {
+  margin-bottom: 12px;
+}
+
+.miniSection {
+  margin-top: 20px;
+}
+
+.miniHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-subtext);
+  margin-bottom: 8px;
+}
+
+.miniCard {
+  background: var(--color-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: 10px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.miniRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: var(--color-subtext);
+}
+
+.miniValue {
+  color: var(--color-text);
+}
+
+.miniRowTotal {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-panel-border);
+  color: var(--color-amber);
+}
+
+.miniRowNote {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: var(--color-coral);
+}
+
+.miniRowSub {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--color-subtext);
+}
+
+.snapshotCard {
+  background: var(--color-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: 10px;
+  padding: 14px;
+  opacity: 1;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.snapshotCard[data-dim] {
+  opacity: 0.35;
+}
+
+.snapshotHeader {
+  margin-bottom: 8px;
+}
+
+.subsection {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--color-panel-border);
+}
+
+.chartLegend {
+  font-size: 11px;
+  color: var(--color-subtext);
+  margin-bottom: 10px;
+  margin-top: -6px;
+}
+
+.legendDiamond {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--color-bg);
+  border: 2px solid var(--color-text);
+  transform: rotate(45deg);
+  margin-right: 5px;
+}
+
+.legendSquare {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: var(--color-text);
+  margin-left: 16px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.legendCircle {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text);
+  margin-left: 16px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.chartTall {
+  height: 320px;
+}
+
+.chartShort {
+  height: 180px;
+}
+
+.readoutsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.disclaimer {
+  color: var(--color-subtext);
+  font-size: 12px;
+  margin-top: 22px;
+  line-height: 1.6;
+}

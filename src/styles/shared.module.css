@@ -1,0 +1,7 @@
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-subtext);
+  font-family: var(--font-heading);
+}

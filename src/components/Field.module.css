@@ -1,0 +1,39 @@
+.wrap {
+  opacity: 1;
+}
+.wrap[data-disabled] {
+  opacity: 0.35;
+}
+
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.valueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-amber);
+}
+
+.valueInput {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-panel-border);
+  color: var(--color-amber);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-align: right;
+  outline: none;
+  padding: 0 2px;
+}
+
+.range {
+  width: 100%;
+  accent-color: var(--color-amber);
+}

@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* Design tokens. Mirrors src/lib/colors.ts — that module stays the source of
+   truth for any color a component hands to JS-only consumers (recharts stroke/fill
+   props, the `s.color` per-scenario data field, the Toggle `accent` prop). Keep
+   the two in sync by hand when a palette value changes. */
+:root {
+  --color-bg: #0B1220;
+  --color-panel: #121B2E;
+  --color-panel-border: rgba(255, 255, 255, 0.08);
+  --color-grid: rgba(255, 255, 255, 0.07);
+  --color-text: #E8ECF3;
+  --color-subtext: #8593AD;
+  --color-amber: #D8A34C;
+  --color-coral: #C97064;
+  --color-mint: #6FA98A;
+  --color-steel: #6E9BD1;
+  --color-violet: #9B87C4;
+
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+input[type=range] {
+  height: 4px;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-amber);
+  cursor: pointer;
+  margin-top: -5px;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-amber);
+  cursor: pointer;
+}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

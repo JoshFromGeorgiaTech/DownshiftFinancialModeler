@@ -1,0 +1,20 @@
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--toggle-border);
+  background: var(--toggle-bg);
+  color: var(--toggle-color);
+  cursor: pointer;
+  width: 100%;
+  font-family: var(--font-heading);
+  font-size: 13px;
+}
+
+.state {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
