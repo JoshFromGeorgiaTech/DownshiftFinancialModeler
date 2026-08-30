@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ReferenceDot, ResponsiveContainer
+  ReferenceDot, ReferenceLine, ResponsiveContainer
 } from "recharts";
 import { Baby, Home, Wallet, Target, TrendingUp, AlertTriangle, CheckCircle2, GitBranch, HeartPulse, RotateCcw, Landmark } from "lucide-react";
 
@@ -20,7 +20,7 @@ import { Readout } from "./components/Readout.js";
 import { GroupHeader } from "./components/GroupHeader.js";
 import { ScenarioCard } from "./components/ScenarioCard.js";
 import { NameFields } from "./components/NameFields.js";
-import { DiamondMarker, SquareMarker } from "./components/Markers.js";
+import { DiamondMarker, SquareMarker, WarningMarker } from "./components/Markers.js";
 
 import shared from "./styles/shared.module.css";
 import styles from "./ScenarioModeler.module.css";
@@ -488,6 +488,7 @@ export default function ScenarioModeler() {
               <span className={styles.legendDiamond} /> downshift
               <span className={styles.legendSquare} /> full retirement
               <span className={styles.legendCircle} /> FI reached
+              <span className={styles.legendTriangle} /> shortfall
             </div>
             <div className={styles.chartTall}>
               <ResponsiveContainer width="100%" height="100%">
@@ -507,6 +508,9 @@ export default function ScenarioModeler() {
                   {summaries.map((s) => s.fiYear !== null && (
                     <ReferenceDot key={`fi-${s.id}`} x={s.fiYear} y={rows[s.fiYear][s.id]} r={5} fill={s.color} stroke={colors.bg} strokeWidth={2} />
                   ))}
+                  {summaries.map((s) => s.shortfallYear !== null && s.shortfallYear <= horizon && (
+                    <ReferenceLine key={`sf-line-${s.id}`} x={s.shortfallYear} stroke={colors.coral} strokeDasharray="4 4" strokeOpacity={0.5} />
+                  ))}
                   {summaries.flatMap((s) => {
                     const marks = [];
                     if (s.incomePct1 < 100 && s.year1 <= horizon) {
@@ -520,6 +524,9 @@ export default function ScenarioModeler() {
                     }
                     if (s.retireYear2 <= horizon) {
                       marks.push(<ReferenceDot key={`r2-${s.id}`} x={s.retireYear2} y={rows[s.retireYear2][s.id]} fill={s.color} shape={SquareMarker} />);
+                    }
+                    if (s.shortfallYear !== null && s.shortfallYear <= horizon) {
+                      marks.push(<ReferenceDot key={`sf-${s.id}`} x={s.shortfallYear} y={rows[s.shortfallYear][s.id]} fill={colors.coral} shape={WarningMarker} />);
                     }
                     return marks;
                   })}
