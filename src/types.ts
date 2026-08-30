@@ -131,5 +131,7 @@ export interface GrossUpResult {
 }
 
 export interface Defaults extends SimParams, HousingScheduleInputs {
+  person1Name: string;
+  person2Name: string;
   scenarios: Scenario[];
 }

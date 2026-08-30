@@ -65,6 +65,10 @@
   white-space: nowrap;
 }
 
+.namesRow {
+  margin-bottom: 18px;
+}
+
 .sections {
   display: flex;
   flex-direction: column;

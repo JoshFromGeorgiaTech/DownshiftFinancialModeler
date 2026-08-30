@@ -19,12 +19,15 @@ import { Toggle } from "./components/Toggle.js";
 import { Readout } from "./components/Readout.js";
 import { GroupHeader } from "./components/GroupHeader.js";
 import { ScenarioCard } from "./components/ScenarioCard.js";
+import { NameFields } from "./components/NameFields.js";
 import { DiamondMarker, SquareMarker } from "./components/Markers.js";
 
 import shared from "./styles/shared.module.css";
 import styles from "./ScenarioModeler.module.css";
 
 export default function ScenarioModeler() {
+  const [person1Name, setPerson1Name] = useState(DEFAULTS.person1Name);
+  const [person2Name, setPerson2Name] = useState(DEFAULTS.person2Name);
   const [startAge, setStartAge] = useState(DEFAULTS.startAge);
   const [income1, setIncome1] = useState(DEFAULTS.income1);
   const [income2, setIncome2] = useState(DEFAULTS.income2);
@@ -89,6 +92,8 @@ export default function ScenarioModeler() {
         const raw = await storage.get(STORAGE_KEY);
         if (!cancelled && raw) {
           const d = JSON.parse(raw);
+          if (d.person1Name !== undefined) setPerson1Name(d.person1Name);
+          if (d.person2Name !== undefined) setPerson2Name(d.person2Name);
           if (d.startAge !== undefined) setStartAge(d.startAge);
           if (d.income1 !== undefined) setIncome1(d.income1);
           if (d.income2 !== undefined) setIncome2(d.income2);
@@ -149,6 +154,7 @@ export default function ScenarioModeler() {
   useEffect(() => {
     if (!loaded) return;
     const data = {
+      person1Name, person2Name,
       startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
       kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
       trad0, roth0, rothBasis0, taxable0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
@@ -161,7 +167,7 @@ export default function ScenarioModeler() {
       storage.set(STORAGE_KEY, JSON.stringify(data));
     }, 500);
     return () => clearTimeout(t);
-  }, [loaded, startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
+  }, [loaded, person1Name, person2Name, startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
       kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
       trad0, roth0, rothBasis0, taxable0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
       employerMatchPct, employerMatchCapPct, inflationRate, planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
@@ -171,6 +177,7 @@ export default function ScenarioModeler() {
 
   const handleReset = () => {
     storage.remove(STORAGE_KEY);
+    setPerson1Name(DEFAULTS.person1Name); setPerson2Name(DEFAULTS.person2Name);
     setStartAge(DEFAULTS.startAge); setIncome1(DEFAULTS.income1); setIncome2(DEFAULTS.income2);
     setGaRate(DEFAULTS.gaRate);
     setExpenses(DEFAULTS.expenses); setGrowthRate(DEFAULTS.growthRate); setHorizon(DEFAULTS.horizon);
@@ -273,6 +280,8 @@ export default function ScenarioModeler() {
       currentHousingCost, appreciationRate, houseYear, uninsuredOn, medCostPerAdult, numUninsuredAdults, scenarios]);
 
   const baselineEnd = rows[rows.length - 1].baseline;
+  const p1 = person1Name.trim() || "Person 1";
+  const p2 = person2Name.trim() || "Person 2";
 
   return (
     <div className={styles.page}>
@@ -294,6 +303,15 @@ export default function ScenarioModeler() {
           </button>
         </div>
 
+        <div className={styles.namesRow}>
+          <NameFields
+            person1Name={person1Name}
+            person2Name={person2Name}
+            onChangePerson1Name={setPerson1Name}
+            onChangePerson2Name={setPerson2Name}
+          />
+        </div>
+
         <div className={styles.sections}>
           <div className={styles.panel}>
             <div className={styles.panelGrid}>
@@ -301,8 +319,8 @@ export default function ScenarioModeler() {
                 <GroupHeader icon={<TrendingUp size={13} />}>Income &amp; expenses</GroupHeader>
                 <div className={styles.fieldStack}>
                   <Field label="Current age" value={startAge} onChange={setStartAge} min={18} max={65} step={1} />
-                  <Field label="Person 1 gross salary" value={income1} onChange={setIncome1} min={40000} max={600000} step={5000} prefix="$" />
-                  <Field label="Person 2 gross salary" value={income2} onChange={setIncome2} min={40000} max={600000} step={5000} prefix="$" />
+                  <Field label={`${p1} gross salary`} value={income1} onChange={setIncome1} min={40000} max={600000} step={5000} prefix="$" />
+                  <Field label={`${p2} gross salary`} value={income2} onChange={setIncome2} min={40000} max={600000} step={5000} prefix="$" />
                   <Field label="GA state tax rate" value={gaRate} onChange={setGaRate} min={0} max={10} step={0.1} suffix="%" />
                   <Field label="Living expenses (excl. housing)" value={expenses} onChange={setExpenses} min={40000} max={400000} step={2000} prefix="$" />
                   <Field label="Expected real return" value={growthRate} onChange={setGrowthRate} min={2} max={10} step={0.5} suffix="%" />
@@ -453,7 +471,13 @@ export default function ScenarioModeler() {
 
             <div className={styles.panelGrid}>
               {scenarios.map((s) => (
-                <ScenarioCard key={s.id} s={s} onChange={(field, value) => setScenarios((prev) => prev.map((sc) => (sc.id === s.id ? { ...sc, [field]: value } : sc)))} />
+                <ScenarioCard
+                  key={s.id}
+                  s={s}
+                  person1Name={p1}
+                  person2Name={p2}
+                  onChange={(field, value) => setScenarios((prev) => prev.map((sc) => (sc.id === s.id ? { ...sc, [field]: value } : sc)))}
+                />
               ))}
             </div>
           </div>
@@ -538,10 +562,10 @@ export default function ScenarioModeler() {
               <Readout
                 key={s.id}
                 icon={s.shortfallYear !== null ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
-                label={`${s.label} · P1 +${s.year1}y@${s.incomePct1}% · P2 +${s.year2}y@${s.incomePct2}%`}
+                label={`${s.label} · ${p1} +${s.year1}y@${s.incomePct1}% · ${p2} +${s.year2}y@${s.incomePct2}%`}
                 value={s.shortfallYear !== null ? `Shortfall at +${s.shortfallYear}y` : "Bridge fully covered"}
                 accent={s.shortfallYear !== null ? colors.coral : colors.mint}
-                sub={`Retire: P1 age ${startAge + s.retireYear1} · P2 age ${startAge + s.retireYear2} · FI: ${s.fiYear !== null ? `+${s.fiYear}y @ ${s.fiSwr!.toFixed(2)}% SWR` : `beyond ${horizon}y`}${ladderOn ? ` · converted ${fmtMoney(s.totalConverted, true)}` : ""} · Liquid at +${horizon}y: ${fmtMoney(s.end, true)}`}
+                sub={`Retire: ${p1} age ${startAge + s.retireYear1} · ${p2} age ${startAge + s.retireYear2} · FI: ${s.fiYear !== null ? `+${s.fiYear}y @ ${s.fiSwr!.toFixed(2)}% SWR` : `beyond ${horizon}y`}${ladderOn ? ` · converted ${fmtMoney(s.totalConverted, true)}` : ""} · Liquid at +${horizon}y: ${fmtMoney(s.end, true)}`}
               />
             ))}
             <Readout
