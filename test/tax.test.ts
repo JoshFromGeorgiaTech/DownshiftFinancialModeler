@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { federalTaxSingle, computeNetForPerson, conversionTax, grossUpTraditional } from "../src/lib/tax.js";
-import { SINGLE_STD_DEDUCTION, SS_WAGE_BASE } from "../src/lib/taxYears2026.js";
+import { federalTaxSingle, computeNetForPerson, conversionTax, grossUpTraditional, capitalGainsTax, grossUpTaxable } from "../src/lib/tax.js";
+import { SINGLE_STD_DEDUCTION, SS_WAGE_BASE, LTCG_SINGLE_BRACKETS } from "../src/lib/taxYears2026.js";
 
 describe("federalTaxSingle", () => {
   it("is zero below the first bracket", () => {
@@ -94,6 +94,79 @@ describe("grossUpTraditional", () => {
     const need = 50000;
     const available = 10000;
     const result = grossUpTraditional(need, 0, 0, 0, 0, 5.5, available);
+    expect(result.gross).toBe(available);
+    expect(result.net).toBeLessThan(need);
+  });
+});
+
+describe("capitalGainsTax", () => {
+  it("is zero for a non-positive gain", () => {
+    expect(capitalGainsTax(100000, 0, 0, 5)).toBe(0);
+    expect(capitalGainsTax(100000, 0, -5, 5)).toBe(0);
+  });
+
+  it("stays in the 0% federal bracket when ordinary income + gain is below the first LTCG threshold", () => {
+    const ltcg0Top = LTCG_SINGLE_BRACKETS[0][1];
+    expect(capitalGainsTax(0, 0, ltcg0Top - 1000, 0)).toBe(0);
+  });
+
+  it("taxes only the slice of the gain that spills above the 0% threshold", () => {
+    const ltcg0Top = LTCG_SINGLE_BRACKETS[0][1];
+    const spillover = 10000;
+    // Ordinary income is 0, so the gain itself straddles the 0%/15% boundary.
+    const tax = capitalGainsTax(0, 0, ltcg0Top + spillover, 0);
+    expect(tax).toBeCloseTo(spillover * 0.15, 6);
+  });
+
+  it("stacks the gain on top of ordinary wages for the federal rate, and applies GA's flat rate to the full gain", () => {
+    const gross = 60000, pretax = 5000, gain = 20000, ga = 5.5;
+    const base = Math.max(0, gross - pretax - SINGLE_STD_DEDUCTION);
+    const bracketTax = (income: number) => {
+      let tax = 0;
+      for (const [lo, hi, rate] of LTCG_SINGLE_BRACKETS) {
+        if (income > lo) tax += (Math.min(income, hi) - lo) * rate;
+        else break;
+      }
+      return tax;
+    };
+    const expectedFederal = bracketTax(base + gain) - bracketTax(base);
+    const expectedState = gain * (ga / 100);
+    expect(capitalGainsTax(gross, pretax, gain, ga)).toBeCloseTo(expectedFederal + expectedState, 6);
+  });
+});
+
+describe("grossUpTaxable", () => {
+  it("returns zero for a non-positive need", () => {
+    expect(grossUpTaxable(0, 0, 0, 0, 0, 5, 100000, 0.5)).toEqual({ gross: 0, tax: 0, net: 0 });
+  });
+
+  it("nets exactly the requested amount when the sale is all basis (no gain)", () => {
+    const need = 50000;
+    const result = grossUpTaxable(need, 0, 0, 0, 0, 5.5, Infinity, 0);
+    expect(result.gross).toBeCloseTo(need, 6);
+    expect(result.tax).toBe(0);
+    expect(result.net).toBeCloseTo(need, 6);
+  });
+
+  it("nets less than the requested amount when the sale is all gain, above the 0% bracket", () => {
+    const need = 100000; // pure gain, well past the ~49,450 0% LTCG threshold
+    const result = grossUpTaxable(need, 0, 0, 0, 0, 5.5, Infinity, 1);
+    expect(result.gross).toBeGreaterThan(need); // selling $X of pure gain nets less than $X
+    expect(result.tax).toBeGreaterThan(0);
+    expect(result.net).toBeCloseTo(need, 0);
+  });
+
+  it("owes no tax when the sale is all gain but stays inside the 0% LTCG bracket", () => {
+    const need = 20000;
+    const result = grossUpTaxable(need, 0, 0, 0, 0, 0, Infinity, 1);
+    expect(result.gross).toBeCloseTo(need, 6);
+    expect(result.tax).toBe(0);
+  });
+
+  it("caps the gross sale at the available balance, even if that underfunds the need", () => {
+    const need = 100000;
+    const available = 10000;
+    const result = grossUpTaxable(need, 0, 0, 0, 0, 5.5, available, 1);
     expect(result.gross).toBe(available);
     expect(result.net).toBeLessThan(need);
   });

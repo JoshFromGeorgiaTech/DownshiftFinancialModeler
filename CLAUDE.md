@@ -25,7 +25,7 @@ That distinction is the whole point of the tool. A household can hold $3M and st
 Originally a single file (`scenario-modeler.jsx`, kept at the repo root for reference/artifact-paste use — see note below); the simulation, tax, mortgage, and storage logic has since been split out of the React tree into plain TypeScript modules under `src/lib/` so they're unit-testable without rendering anything. Layout:
 
 - `src/lib/taxYears2026.ts` — 2026 federal bracket/threshold constants. A new tax year gets its own `taxYearsYYYY.ts` rather than editing this in place.
-- `src/lib/tax.ts` — `federalTaxSingle`, `conversionTax`, `grossUpTraditional`, `computeNetForPerson`
+- `src/lib/tax.ts` — `federalTaxSingle`, `conversionTax`, `grossUpTraditional`, `capitalGainsTax`, `grossUpTaxable`, `computeNetForPerson`
 - `src/lib/swr.ts` — `swrForHorizon`, the SWR-vs-horizon anchor table
 - `src/lib/mortgage.ts` — `monthlyPI`, `remainingBalance`, `computeMortgageSnapshot` (the live "at purchase" panel), `buildHousingSchedule` (the per-year housing cost/equity array the simulation consumes)
 - `src/lib/simulate.ts` — `simulateScenario(params, housingByYear, downshift)`, the core year-by-year engine (see below)
@@ -62,6 +62,7 @@ These were all real bugs found by numeric audit, not by reading the code. Preser
 - **The FI threshold uses recurring expenses only.** A one-time down payment must not be multiplied by the SWR divisor — it spikes the bar by 25–30× a lump sum for one year.
 - **Housing is added, never delta'd.** `Living expenses` is defined as *excluding* housing; the actual housing cost (rent, or full mortgage+tax+insurance+PMI) is added every year. An earlier delta-based version double-counted or under-counted depending on an unstated assumption.
 - **Traditional withdrawals must be grossed up.** Withdrawing $X nets less than $X. `grossUpTraditional` iterates to convergence and caps at the available balance.
+- **Taxable sales must be grossed up for capital gains tax, and basis tracks separately from balance.** Same shape as the Traditional gross-up (`grossUpTaxable`/`capitalGainsTax`), but only the gain fraction (`1 - taxableBasis/taxable`) is taxable, at LTCG rates. `taxableBasis` grows only from new contributions, never from investment growth — mirrors how `rothBasis` doesn't grow with Roth's own returns.
 - **Pretax contributions reduce taxable income but not FICA wages.** Both halves of that are correct and load-bearing.
 - **Nominal mortgage P&I is deflated; tax/insurance are not.** The model runs in real dollars. A fixed mortgage payment shrinks in real terms; costs that scale with home value don't. The loan balance is nominal too (it's a fixed contract amount, same as P&I) — `buildHousingSchedule` deflates it before comparing it against the real-dollar `homeValue` for equity and the PMI LTV check, while leaving the PMI dollar *amount* itself on the nominal balance (like P&I, it gets deflated alongside P&I afterward). Mixing nominal and real here previously understated home equity by tens of thousands of dollars and over-extended the PMI window — see `test/mortgage.test.ts`'s deflation tests before changing this.
 
@@ -70,8 +71,9 @@ These were all real bugs found by numeric audit, not by reading the code. Preser
 - **Everything is in real (inflation-adjusted) dollars.** Flat income over 30 years is intentional. The `inflationRate` input exists *only* to deflate nominal mortgage payments.
 - **Filers are modeled as two single filers**, not married-filing-jointly. Changing this is a real feature request, not a bug.
 - **SWR scales with horizon** via `swrForHorizon`, interpolating published anchors (≈4.0% at 30 years, ≈3.4% at 50, ≈3.3% beyond). The flat 4%/25× rule is calibrated for a 30-year retirement and is wrong for someone retiring at 45. `swrAdjust` shifts the curve because the research genuinely disagrees.
-- **The Roth conversion ladder** converts Traditional→Roth pre-59½, pays ordinary income tax that year, and unlocks each batch after a seasoning period (5 years under current law, each year's conversion on its own clock). Seasoned conversions are drawn after Roth basis. This is the single highest-impact lever in the model.
+- **The Roth conversion ladder** converts Traditional→Roth pre-59½, pays ordinary income tax that year, and unlocks each batch after a seasoning period (5 years under current law, each year's conversion on its own clock). Seasoned conversions are drawn after Roth basis. This is the single highest-impact lever in the model. It's also gated on both people being off full income (the same `!p1Active && !p2Active` condition as the uninsured-healthcare surcharge) — converting while either person still draws a full salary defeats the point, since it stacks ordinary income on their highest marginal bracket instead of a genuinely low-income year. The baseline ("never downshift") therefore never converts at all, and an asymmetric scenario (one person downshifts, the other doesn't) waits for both.
 - **Roth ordering rules are three tiers:** contributions (always accessible) → conversions (own 5-year clock, FIFO) → earnings (59½ + 5 years). The model's `rothBasis` tracks tier 1 and the `conversions` queue tracks tier 2.
+- **Taxable-account sales owe long-term capital gains tax**, always — the model doesn't distinguish short- vs. long-term holding periods, it just assumes LTCG treatment throughout (federal 0/15/20% brackets stacked on the gain on top of that year's wages, plus GA's flat rate on the gain since Georgia has no capital-gains preference). Basis is tracked as a single running average, not per-lot, so every sale is assumed to carry the account's current basis/balance ratio — no loss-harvesting, no picking specific lots.
 
 ## Storage
 
@@ -87,11 +89,10 @@ These were all real bugs found by numeric audit, not by reading the code. Preser
 
 1. **No sequence-of-returns risk.** Deterministic projections are optimistic by construction; a fixed return is more favorable than the same average delivered volatilely. This is the largest methodological hole, and it bites hardest for long drawdowns starting in one's 30s. Minimum viable fix: a "force a −30% year at the downshift date" stress button. Fuller fix: Monte Carlo, or a return haircut by confidence level.
 2. **No RMDs at 73.** Forces taxable income exactly when it's least wanted, and is a main argument for converting harder in one's 50s. Interacts directly with the ladder.
-3. **No capital gains tax on taxable sales.** Roughly a $3–8K/yr effect; needs lot-level basis tracking to do properly.
-4. **No mega backdoor Roth.** Large after-tax 401(k) contributions converted in-plan. Material for big-tech employees.
-5. **RSU income modeled as plain salary.** No vest schedule, no concentration risk.
-6. **Social Security is asymmetric** — FICA is paid, benefits are never received.
-7. Missing inputs: salary growth, college/529, one-time events, ACA premium modeling, state moves, mortgage interest deduction, emergency-fund floor, Rule of 55, 72(t)/SEPP.
+3. **No mega backdoor Roth.** Large after-tax 401(k) contributions converted in-plan. Material for big-tech employees.
+4. **RSU income modeled as plain salary.** No vest schedule, no concentration risk.
+5. **Social Security is asymmetric** — FICA is paid, benefits are never received.
+6. Missing inputs: salary growth, college/529, one-time events, ACA premium modeling, state moves, mortgage interest deduction, emergency-fund floor, Rule of 55, 72(t)/SEPP.
 
 ## Working conventions
 
