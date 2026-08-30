@@ -1,4 +1,4 @@
-import { computeNetForPerson, conversionTax, grossUpTraditional } from "./tax.js";
+import { computeNetForPerson, conversionTax, grossUpTraditional, grossUpTaxable } from "./tax.js";
 import { swrForHorizon } from "./swr.js";
 import type { SimParams, HousingYearRow, DownshiftConfig, SimResult, SimRow } from "../types.js";
 
@@ -21,14 +21,15 @@ export function simulateScenario(params: SimParams, housingByYear: HousingYearRo
   const {
     startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
     kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
-    trad0, roth0, rothBasis0, taxable0, cash0, hsa0,
+    trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0,
     tradTarget, rothTarget, hsaTarget, employerMatchPct, employerMatchCapPct,
     planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
     uninsuredOn, medCostPerAdult, numUninsuredAdults,
   } = params;
   const { year1, pct1, retireYear1, year2, pct2, retireYear2 } = downshift;
 
-  let trad = trad0, roth = roth0, rothBasis = Math.min(rothBasis0, roth0), taxable = taxable0, cash = cash0, hsa = hsa0;
+  let trad = trad0, roth = roth0, rothBasis = Math.min(rothBasis0, roth0), taxable = taxable0,
+      taxableBasis = Math.min(taxableBasis0, taxable0), cash = cash0, hsa = hsa0;
   let firstShortfallYear: number | null = null;
   let fiYear: number | null = null;
   let fiSwr: number | null = null;
@@ -70,9 +71,12 @@ export function simulateScenario(params: SimParams, housingByYear: HousingYearRo
     // --- Roth conversion ladder ---
     // Convert Traditional -> Roth during low-income years. The converted amount is
     // ordinary income now, but becomes penalty-free accessible after seasoning.
-    // Pointless once penalty-free age is reached, so it stops there.
+    // Pointless once penalty-free age is reached, so it stops there. Also gated on both people
+    // being off full income — same condition as the uninsured-healthcare surcharge — since
+    // converting while still drawing a full salary defeats the point: it's ordinary income
+    // stacked on top of your highest marginal bracket instead of a low-income year's.
     let converted = 0, convTax = 0;
-    if (ladderOn && !penaltyFree && trad > 0) {
+    if (ladderOn && !penaltyFree && !p1Active && !p2Active && trad > 0) {
       const c1 = Math.min(convertPerPerson, Math.max(0, trad / 2));
       const c2 = Math.min(convertPerPerson, Math.max(0, trad / 2));
       converted = Math.min(c1 + c2, trad);
@@ -91,16 +95,17 @@ export function simulateScenario(params: SimParams, housingByYear: HousingYearRo
       Math.min(deferral * (employerMatchPct / 100), gross * (employerMatchCapPct / 100));
     const employerMatch = matchFor(p1Gross, p1TradContrib) + matchFor(p2Gross, p2TradContrib);
 
-    let tradWithdrawalTax = 0;
+    let tradWithdrawalTax = 0, taxableWithdrawalTax = 0;
     let tradChange = p1TradContrib + p2TradContrib + employerMatch - converted;
     const hsaChange = p1HsaContrib + p2HsaContrib;
-    let rothChange = 0, rothBasisChange = 0, taxableChange = 0, cashChange = 0, shortfall = 0;
+    let rothChange = 0, rothBasisChange = 0, taxableChange = 0, taxableBasisChange = 0, cashChange = 0, shortfall = 0;
 
     if (cashflow >= 0) {
       let remaining = cashflow;
       rothChange = Math.min(rothTarget, remaining); remaining -= rothChange;
       rothBasisChange = rothChange;
       taxableChange = remaining;
+      taxableBasisChange = remaining; // fresh contributions carry their own basis dollar-for-dollar
     } else {
       let need = -cashflow;
       // Each source can only supply what it actually holds; a negative balance (debt carried
@@ -109,8 +114,23 @@ export function simulateScenario(params: SimParams, housingByYear: HousingYearRo
       const fromCash = Math.min(Math.max(cash, 0), need);
       cashChange = -fromCash; need -= fromCash;
 
-      const fromTaxable = Math.min(Math.max(taxable, 0), need);
-      taxableChange = -fromTaxable; need -= fromTaxable;
+      // Selling taxable assets realizes long-term capital gains on the appreciated portion.
+      // Basis is tracked as a running average (no lot-level detail), so each sale is assumed
+      // to carry the account's current basis/balance ratio — same gain fraction whether it's
+      // the first dollar sold or the last.
+      if (need > 0) {
+        const availableTaxable = Math.max(taxable, 0);
+        const basisFraction = taxable > 0 ? Math.min(1, Math.max(0, taxableBasis / taxable)) : 0;
+        const gainFraction = 1 - basisFraction;
+        const gu = grossUpTaxable(
+          need, p1Gross, p1TradContrib + p1HsaContrib,
+          p2Gross, p2TradContrib + p2HsaContrib, gaRate, availableTaxable, gainFraction
+        );
+        taxableChange -= gu.gross;
+        taxableBasisChange -= gu.gross * basisFraction;
+        taxableWithdrawalTax += gu.tax;
+        need -= gu.net;
+      }
 
       const fromRothBasis = Math.min(Math.max(rothBasis, 0), need);
       rothChange -= fromRothBasis; rothBasisChange -= fromRothBasis; need -= fromRothBasis;
@@ -144,13 +164,21 @@ export function simulateScenario(params: SimParams, housingByYear: HousingYearRo
       if (need > 0) taxableChange -= need; // no accessible funds left — surfaces as negative (debt), not silently absorbed
     }
 
-    totalWithdrawalTax += tradWithdrawalTax;
+    totalWithdrawalTax += tradWithdrawalTax + taxableWithdrawalTax;
     const total = trad + roth + taxable + cash + hsa;
     if (shortfall > 1 && firstShortfallYear === null) firstShortfallYear = y;
     const yearsToFund = Math.max(1, planningEndAge - age);
     const swr = Math.max(0.5, swrForHorizon(yearsToFund) + swrAdjust);
     if (fiYear === null && total >= recurringExpenses * (100 / swr)) { fiYear = y; fiSwr = swr; }
-    out.push({ year: y, total: Math.round(total) });
+
+    // Accessible: cash, taxable, Roth basis, and seasoned conversions — the assets reachable
+    // before penaltyFreeAge, since Traditional and Roth growth are locked until then. This is
+    // what can silently diverge from `total`: net worth can climb while the money you can
+    // actually touch runs out.
+    const seasonedConversions = conversions.reduce((sum, c) => sum + (c.availableYear <= y ? c.amount : 0), 0);
+    const accessible = penaltyFree ? total : cash + taxable + rothBasis + seasonedConversions;
+
+    out.push({ year: y, total: Math.round(total), accessible: Math.round(accessible) });
 
     // Mid-year convention: contributions and withdrawals happen throughout the year, not on
     // Jan 1, so they earn (or forgo) roughly half a year of return — not a full year.
@@ -160,6 +188,7 @@ export function simulateScenario(params: SimParams, housingByYear: HousingYearRo
     roth = roth * (1 + g) + (rothChange + converted) * midYear;
     rothBasis = Math.max(0, rothBasis + rothBasisChange);
     taxable = taxable * (1 + g) + taxableChange * midYear;
+    taxableBasis = Math.max(0, taxableBasis + taxableBasisChange); // basis doesn't grow — only new contributions add to it
     cash = cash + cashChange;
     hsa = hsa * (1 + g) + hsaChange * midYear;
   }

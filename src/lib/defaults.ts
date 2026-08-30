@@ -5,7 +5,7 @@ export const DEFAULTS: Defaults = {
   person1Name: "Person 1", person2Name: "Person 2",
   startAge: 29, income1: 170000, income2: 150000, gaRate: 5.5, expenses: 110000, growthRate: 6, horizon: 30, penaltyFreeAge: 59,
   kidsOn: true, numKids: 2, infantCost: 18000, infantYears: 4, laterCost: 8000, kidsStartYear: 3, kidsDuration: 22,
-  trad0: 450000, roth0: 150000, rothBasis0: 90000, taxable0: 540000, cash0: 60000, hsa0: 50000,
+  trad0: 450000, roth0: 150000, rothBasis0: 90000, taxable0: 540000, taxableBasis0: 350000, cash0: 60000, hsa0: 50000,
   tradTarget: 46000, rothTarget: 14000, hsaTarget: 8300, employerMatchPct: 50, employerMatchCapPct: 6,
   inflationRate: 2.5, planningEndAge: 95, swrAdjust: 0,
   ladderOn: true, convertPerPerson: 33000, seasoningYears: 5,

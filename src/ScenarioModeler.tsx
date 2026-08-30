@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ReferenceDot, ReferenceLine, ResponsiveContainer
+  ReferenceDot, ReferenceLine, ReferenceArea, ResponsiveContainer
 } from "recharts";
 import { Baby, Home, Wallet, Target, TrendingUp, AlertTriangle, CheckCircle2, GitBranch, HeartPulse, RotateCcw, Landmark } from "lucide-react";
 
@@ -49,6 +49,7 @@ export default function ScenarioModeler() {
   const [roth0, setRoth0] = useState(DEFAULTS.roth0);
   const [rothBasis0, setRothBasis0] = useState(DEFAULTS.rothBasis0);
   const [taxable0, setTaxable0] = useState(DEFAULTS.taxable0);
+  const [taxableBasis0, setTaxableBasis0] = useState(DEFAULTS.taxableBasis0);
   const [cash0, setCash0] = useState(DEFAULTS.cash0);
   const [hsa0, setHsa0] = useState(DEFAULTS.hsa0);
 
@@ -113,6 +114,7 @@ export default function ScenarioModeler() {
           if (d.roth0 !== undefined) setRoth0(d.roth0);
           if (d.rothBasis0 !== undefined) setRothBasis0(d.rothBasis0);
           if (d.taxable0 !== undefined) setTaxable0(d.taxable0);
+          if (d.taxableBasis0 !== undefined) setTaxableBasis0(d.taxableBasis0);
           if (d.cash0 !== undefined) setCash0(d.cash0);
           if (d.hsa0 !== undefined) setHsa0(d.hsa0);
           if (d.tradTarget !== undefined) setTradTarget(d.tradTarget);
@@ -157,7 +159,7 @@ export default function ScenarioModeler() {
       person1Name, person2Name,
       startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
       kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
-      trad0, roth0, rothBasis0, taxable0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
+      trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
       employerMatchPct, employerMatchCapPct, inflationRate, planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
       houseOn, housePrice, downPaymentPct, mortgageRate, loanTermYears, propertyTaxRate,
       insMaintPct, currentHousingCost, appreciationRate, houseYear,
@@ -169,7 +171,7 @@ export default function ScenarioModeler() {
     return () => clearTimeout(t);
   }, [loaded, person1Name, person2Name, startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
       kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
-      trad0, roth0, rothBasis0, taxable0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
+      trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
       employerMatchPct, employerMatchCapPct, inflationRate, planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
       houseOn, housePrice, downPaymentPct, mortgageRate, loanTermYears, propertyTaxRate,
       insMaintPct, currentHousingCost, appreciationRate, houseYear,
@@ -186,7 +188,7 @@ export default function ScenarioModeler() {
     setInfantCost(DEFAULTS.infantCost); setInfantYears(DEFAULTS.infantYears); setLaterCost(DEFAULTS.laterCost);
     setKidsStartYear(DEFAULTS.kidsStartYear); setKidsDuration(DEFAULTS.kidsDuration);
     setTrad0(DEFAULTS.trad0); setRoth0(DEFAULTS.roth0); setRothBasis0(DEFAULTS.rothBasis0);
-    setTaxable0(DEFAULTS.taxable0); setCash0(DEFAULTS.cash0); setHsa0(DEFAULTS.hsa0);
+    setTaxable0(DEFAULTS.taxable0); setTaxableBasis0(DEFAULTS.taxableBasis0); setCash0(DEFAULTS.cash0); setHsa0(DEFAULTS.hsa0);
     setTradTarget(DEFAULTS.tradTarget); setRothTarget(DEFAULTS.rothTarget); setHsaTarget(DEFAULTS.hsaTarget);
     setEmployerMatchPct(DEFAULTS.employerMatchPct); setEmployerMatchCapPct(DEFAULTS.employerMatchCapPct);
     setInflationRate(DEFAULTS.inflationRate);
@@ -234,7 +236,7 @@ export default function ScenarioModeler() {
     const simParams: SimParams = {
       startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
       kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
-      trad0, roth0, rothBasis0, taxable0, cash0, hsa0,
+      trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0,
       tradTarget, rothTarget, hsaTarget, employerMatchPct, employerMatchCapPct,
       planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
       uninsuredOn, medCostPerAdult, numUninsuredAdults,
@@ -253,11 +255,11 @@ export default function ScenarioModeler() {
       }),
     }));
 
-    type MergedRow = { year: number; baseline: number; [scenarioId: string]: number };
+    type MergedRow = { year: number; baseline: number; baselineAccessible: number; [scenarioId: string]: number };
     const merged: MergedRow[] = [];
     for (let y = 0; y <= horizon; y++) {
-      const row: MergedRow = { year: y, baseline: baseline.rows[y].total };
-      results.forEach((s) => { row[s.id] = s.sim.rows[y].total; });
+      const row: MergedRow = { year: y, baseline: baseline.rows[y].total, baselineAccessible: baseline.rows[y].accessible };
+      results.forEach((s) => { row[s.id] = s.sim.rows[y].total; row[`${s.id}_accessible`] = s.sim.rows[y].accessible; });
       merged.push(row);
     }
 
@@ -274,7 +276,7 @@ export default function ScenarioModeler() {
       equityAtHorizon: housingByYear[horizon].equity,
     };
   }, [startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge, kidsOn, numKids, infantCost, infantYears, laterCost,
-      kidsStartYear, kidsDuration, trad0, roth0, rothBasis0, taxable0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
+      kidsStartYear, kidsDuration, trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
       employerMatchPct, employerMatchCapPct, inflationRate, planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
       houseOn, housePrice, downPaymentPct, mortgageRate, loanTermYears, propertyTaxRate, insMaintPct,
       currentHousingCost, appreciationRate, houseYear, uninsuredOn, medCostPerAdult, numUninsuredAdults, scenarios]);
@@ -282,6 +284,12 @@ export default function ScenarioModeler() {
   const baselineEnd = rows[rows.length - 1].baseline;
   const p1 = person1Name.trim() || "Person 1";
   const p2 = person2Name.trim() || "Person 2";
+
+  // The accessible-funds chart is only interesting up through the penalty-free age — past that,
+  // "accessible" jumps to equal total net worth for everyone at once, which both trivializes the
+  // chart's point and dwarfs the pre-59½ scenario lines it's meant to show.
+  const accessibleCutoff = Math.max(1, Math.min(rows.length, penaltyFreeAge - startAge));
+  const accessibleRows = rows.slice(0, accessibleCutoff);
 
   return (
     <div className={styles.page}>
@@ -376,6 +384,7 @@ export default function ScenarioModeler() {
                   <Field label="Roth balance" value={roth0} onChange={setRoth0} min={0} max={1000000} step={5000} prefix="$" />
                   <Field label="Roth basis (contributions)" value={rothBasis0} onChange={setRothBasis0} min={0} max={roth0} step={5000} prefix="$" hint="How much of the Roth balance is your own contributions rather than growth. This matters a lot: contributions can be withdrawn tax- and penalty-free at any age, so this number is a large part of your pre-59½ runway. Growth cannot." />
                   <Field label="Taxable — invested" value={taxable0} onChange={setTaxable0} min={0} max={2000000} step={10000} prefix="$" />
+                  <Field label="Taxable cost basis" value={taxableBasis0} onChange={setTaxableBasis0} min={0} max={taxable0} step={10000} prefix="$" hint="How much of the taxable balance is what you originally put in, versus investment growth. The gap between this and the balance above is unrealized gain — selling to cover a shortfall owes long-term capital gains tax on that gain, split evenly across both filers and stacked on top of any wages that year." />
                   <Field label="Taxable — cash (money market)" value={cash0} onChange={setCash0} min={0} max={500000} step={5000} prefix="$" hint="Assumed to yield roughly inflation, so it holds flat in real terms rather than growing. Drawn down first in a shortfall year." />
                   <Field label="HSA balance" value={hsa0} onChange={setHsa0} min={0} max={200000} step={2000} prefix="$" />
                 </div>
@@ -451,7 +460,7 @@ export default function ScenarioModeler() {
 
             <div className={styles.subsection}>
               <div className={styles.toggleSpacing}>
-                <Toggle label="Roth conversion ladder" icon={<Landmark size={14} />} checked={ladderOn} onChange={setLadderOn} accent={colors.mint} hint="Converts Traditional to Roth during low-income years, paying ordinary income tax now so the money becomes penalty-free after seasoning. This is the standard way to reach retirement money before 59½ and is usually the highest-impact lever in the model." />
+                <Toggle label="Roth conversion ladder" icon={<Landmark size={14} />} checked={ladderOn} onChange={setLadderOn} accent={colors.mint} hint="Converts Traditional to Roth once both of you are off full income, paying ordinary income tax now (at your new, lower bracket) so the money becomes penalty-free after seasoning. This is the standard way to reach retirement money before 59½ and is usually the highest-impact lever in the model." />
               </div>
               <div className={styles.panelGridNarrow}>
                 <Field label="Convert per person / yr" value={convertPerPerson} onChange={setConvertPerPerson} min={0} max={120000} step={1000} prefix="$" disabled={!ladderOn} hint="How much Traditional to convert to Roth each year before penalty-free age. Above roughly $66k per person you leave the 12% federal bracket and the rate arbitrage shrinks sharply." />
@@ -479,6 +488,37 @@ export default function ScenarioModeler() {
                   onChange={(field, value) => setScenarios((prev) => prev.map((sc) => (sc.id === s.id ? { ...sc, [field]: value } : sc)))}
                 />
               ))}
+            </div>
+          </div>
+
+          <div className={styles.panel}>
+            <GroupHeader icon={<Wallet size={13} />}>Accessible funds</GroupHeader>
+            <p className={styles.subtitle}>
+              Cash, taxable, Roth basis, and seasoned conversions — the money actually reachable before {penaltyFreeAge},
+              not total net worth. This is where a scenario that looks fine on the charts below can still run out of
+              reachable money. Cuts off at age {penaltyFreeAge}, when Traditional and Roth growth unlock for everyone at
+              once and "accessible" stops being the binding constraint.
+            </p>
+            <div className={styles.chartTall}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={accessibleRows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={colors.grid} vertical={false} />
+                  <XAxis dataKey="year" tickFormatter={(y) => `+${y}y`} stroke={colors.subtext} fontSize={11} tickLine={false} axisLine={{ stroke: colors.panelBorder }} />
+                  <YAxis tickFormatter={(v) => fmtMoney(v, true)} stroke={colors.subtext} fontSize={11} tickLine={false} axisLine={false} width={58} />
+                  <Tooltip
+                    formatter={(value, name) => [fmtMoney(Number(value)), name]}
+                    labelFormatter={(y) => `Year +${y} (age ${startAge + y})`}
+                    contentStyle={{ background: colors.bg, border: `1px solid ${colors.panelBorder}`, borderRadius: 8, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, fontFamily: "'Space Grotesk', sans-serif" }} />
+                  <ReferenceArea y2={0} fill={colors.coral} fillOpacity={0.08} />
+                  <ReferenceLine y={0} stroke={colors.coral} strokeDasharray="4 4" label={{ value: "out of accessible funds", position: "insideBottomLeft", fill: colors.coral, fontSize: 11 }} />
+                  <Line type="monotone" dataKey="baselineAccessible" name="Never downshift" stroke={colors.coral} strokeDasharray="5 4" strokeWidth={2} dot={false} />
+                  {summaries.map((s) => (
+                    <Line key={s.id} type="monotone" dataKey={`${s.id}_accessible`} name={s.label} stroke={s.color} strokeWidth={2.5} dot={false} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
@@ -596,10 +636,11 @@ export default function ScenarioModeler() {
           to full gross either way, since 401k/HSA elections don't reduce Social Security or Medicare wages. These
           thresholds are held flat in the model's real (inflation-adjusted) dollars, which is a reasonable approximation
           since most of them are themselves inflation-indexed by law in reality. Not modeled: state/local beyond GA,
-          itemizing, credits (child tax credit, EITC), NIIT, capital gains tax on selling taxable investments, or tax on
-          Traditional withdrawals in retirement — a Traditional dollar still spends like a tax-free dollar once it's in
-          the account, which is the biggest remaining gap. If you get married, married-filing-jointly brackets are wider
-          at your combined income, so total tax would very likely drop from what's shown now.
+          itemizing, credits (child tax credit, EITC), or NIIT. The net worth chart's "total" still counts a Traditional
+          dollar the same as a Roth dollar even though it isn't spendable without the withdrawal tax computed elsewhere
+          in this model — actual withdrawals are taxed, but the running balance itself is shown pre-tax. If you get
+          married, married-filing-jointly brackets are wider at your combined income, so total tax would very likely
+          drop from what's shown now.
           <br /><br />
           Mortgage rate defaults to roughly today's national average 30-year fixed (~6.6–6.7% as of Aug 2026, per Freddie Mac);
           adjust for your actual quote. Property tax and insurance scale with an appreciating home value; PMI applies while
@@ -621,6 +662,15 @@ export default function ScenarioModeler() {
           dollars this whole model runs in, it holds flat rather than growing. In a shortfall year, that cash is drawn down
           first — before the invested taxable balance, Roth contributions, or anything else — since it's the part of the
           portfolio actually meant to be spent short-term.
+          <br /><br />
+          Selling invested taxable assets to cover a shortfall owes long-term capital gains tax on the gain portion — federal
+          0/15/20% brackets stacked on top of that year's wages, plus Georgia's flat rate on the gain (Georgia has no
+          preferential capital-gains rate). "Taxable cost basis" sets how much of the starting balance is contributions
+          versus already-accrued growth; every later contribution adds fresh basis dollar-for-dollar, and every sale draws
+          down basis at the account's current average gain ratio, same as a mutual fund's average-cost method — there's no
+          lot-level tracking or loss-harvesting, and every gain is treated as long-term regardless of how recently it was
+          contributed. The gross-up works the same way as a Traditional withdrawal: sell enough that what's left over after
+          tax covers the need.
           <br /><br />
           The uninsured healthcare line applies once neither person is still at full income (whichever of downshift or
           retirement takes them off it first) — it isn't a real budget for going without coverage. Averages like this are
@@ -656,15 +706,19 @@ export default function ScenarioModeler() {
           a fixed mortgage payment shrinks over time, while property tax, insurance, and maintenance scale with the
           home and stay real.
           <br /><br />
-          The Roth conversion ladder is the standard mechanism for reaching Traditional money before 59&frac12;. Each year
-          before penalty-free age, the model converts up to the per-person amount from Traditional to Roth, pays ordinary
-          income tax on it that year (federal + GA, no FICA), and makes it penalty-free accessible after the seasoning
-          period &mdash; five years under current law, with each year's conversion carrying its own clock. Seasoned
-          conversions are drawn after Roth basis and before anything age-restricted. The point of the ladder is rate
-          arbitrage: convert during low-income downshift years at 12&ndash;17% instead of deducting at your current 29.5%
-          marginal. Converting more than about \$66k per person in a year pushes you out of the 12% federal bracket and
-          the arbitrage shrinks sharply. Two alternatives the model does NOT simulate: 72(t)/SEPP substantially equal
-          periodic payments, which unlock a Traditional balance at any age but lock you into a rigid payment schedule;
+          The Roth conversion ladder is the standard mechanism for reaching Traditional money before 59&frac12;. It only
+          runs once BOTH of you are off full income (downshifted or retired) &mdash; the same condition that triggers the
+          uninsured-healthcare surcharge &mdash; since converting while either of you still draws a full salary stacks
+          ordinary income on your highest bracket instead of a genuinely low-income year, defeating the point. So the
+          "never downshift" baseline never converts at all, and an asymmetric scenario waits for whichever of you downshifts
+          last. Once active, each year before penalty-free age the model converts up to the per-person amount from
+          Traditional to Roth, pays ordinary income tax on it that year (federal + GA, no FICA), and makes it penalty-free
+          accessible after the seasoning period &mdash; five years under current law, with each year's conversion carrying
+          its own clock. Seasoned conversions are drawn after Roth basis and before anything age-restricted. The point of
+          the ladder is rate arbitrage: convert during low-income years at 12&ndash;17% instead of deducting at your
+          previous 29.5% marginal. Converting more than about \$66k per person in a year pushes you out of the 12% federal
+          bracket and the arbitrage shrinks sharply. Two alternatives the model does NOT simulate: 72(t)/SEPP substantially
+          equal periodic payments, which unlock a Traditional balance at any age but lock you into a rigid payment schedule;
           and the Rule of 55, which lets you tap the 401(k) of the employer you leave in or after the year you turn 55.
           <br /><br />
           Traditional withdrawals after the penalty-free age are taxed as ordinary income, so the model grosses them
@@ -672,7 +726,7 @@ export default function ScenarioModeler() {
           that year and split across both filers. Qualified Roth withdrawals stay tax-free, which is the point of the
           ladder: you pay once, at a low rate, in a low-income year. Still not modeled on the withdrawal side: RMDs
           starting at 73 (which force taxable income whether you want it or not, and are the main reason to convert
-          more aggressively earlier), NIIT, and capital gains tax on taxable-account sales.
+          more aggressively earlier) and NIIT.
           <br /><br />
           Once cash, taxable, Roth basis, seasoned conversions, and (if age allows) Traditional and Roth growth are all exhausted in a shortfall
           year, whatever's still unfunded shows up as negative taxable balance — a stand-in for having to borrow to cover

@@ -29,6 +29,7 @@ export interface HousingYearRow {
 export interface SimRow {
   year: number;
   total: number;
+  accessible: number;
 }
 
 export interface SimResult {
@@ -60,6 +61,7 @@ export interface SimParams {
   roth0: number;
   rothBasis0: number;
   taxable0: number;
+  taxableBasis0: number;
   cash0: number;
   hsa0: number;
   tradTarget: number;

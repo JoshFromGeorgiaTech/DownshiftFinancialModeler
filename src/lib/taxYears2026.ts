@@ -14,3 +14,11 @@ export const FEDERAL_SINGLE_BRACKETS: [number, number, number][] = [
   [256225, 640600, 0.35],
   [640600, Infinity, 0.37],
 ];
+
+// Long-term capital gains brackets stack on top of ordinary taxable income (not from
+// zero) — the 0%/15%/20% rate is determined by where ordinary income + gain lands.
+export const LTCG_SINGLE_BRACKETS: [number, number, number][] = [
+  [0, 49450, 0.00],
+  [49450, 546300, 0.15],
+  [546300, Infinity, 0.20],
+];

@@ -5,12 +5,15 @@ import type { SimParams, HousingYearRow, DownshiftConfig } from "../src/types.js
 
 const NEVER = 999; // "never downshift/retire" sentinel for the downshift config in these tests
 const noDownshift: DownshiftConfig = { year1: NEVER, pct1: 100, retireYear1: NEVER, year2: NEVER, pct2: 100, retireYear2: NEVER };
+// Both people off full income from year 0 onward (downshifted, not retired) — the ladder is
+// gated on this exact condition, so most ladder tests need it instead of noDownshift.
+const bothOffFullIncome: DownshiftConfig = { year1: 0, pct1: 50, retireYear1: NEVER, year2: 0, pct2: 50, retireYear2: NEVER };
 
 function baseParams(overrides: Partial<SimParams> = {}): SimParams {
   return {
     startAge: 30, income1: 0, income2: 0, gaRate: 0, expenses: 0, growthRate: 0, horizon: 1, penaltyFreeAge: 59,
     kidsOn: false, numKids: 0, infantCost: 0, infantYears: 0, laterCost: 0, kidsStartYear: 0, kidsDuration: 0,
-    trad0: 0, roth0: 0, rothBasis0: 0, taxable0: 0, cash0: 0, hsa0: 0,
+    trad0: 0, roth0: 0, rothBasis0: 0, taxable0: 0, taxableBasis0: 0, cash0: 0, hsa0: 0,
     tradTarget: 0, rothTarget: 0, hsaTarget: 0, employerMatchPct: 0, employerMatchCapPct: 0,
     planningEndAge: 60, swrAdjust: 0, ladderOn: false, convertPerPerson: 0, seasoningYears: 5,
     uninsuredOn: false, medCostPerAdult: 0, numUninsuredAdults: 0,
@@ -116,6 +119,16 @@ describe("Roth conversion ladder", () => {
   // real cash need is 10,000 (expenses) + 1,600 (that year's own conversion tax) = 11,600.
   const annualNeed = 11600;
 
+  it("never converts while either person is still at full income", () => {
+    // noDownshift keeps both people at full income (pct 100%) for the whole horizon, which is
+    // exactly the condition the ladder is gated against — converting here would tax the
+    // conversion at a full salary's marginal rate instead of a low-income year's.
+    const params = baseParams({ trad0: 1000000, ladderOn: true, convertPerPerson: 8000, horizon: 3 });
+    const housing = flatHousing(params.horizon);
+    const result = simulateScenario(params, housing, noDownshift);
+    expect(result.totalConverted).toBe(0);
+  });
+
   it("does not let an unseasoned conversion cover a shortfall before its seasoning year", () => {
     // Cash covers years 0-3 exactly (4 x 11,600 = 46,400); year 4 has nothing else accessible
     // (not penalty-free, no basis/taxable left) and year 0's conversion doesn't season until
@@ -125,7 +138,7 @@ describe("Roth conversion ladder", () => {
       expenses: 10000, cash0: annualNeed * 4, penaltyFreeAge: 100, horizon: 4,
     });
     const housing = flatHousing(params.horizon);
-    const result = simulateScenario(params, housing, noDownshift);
+    const result = simulateScenario(params, housing, bothOffFullIncome);
     expect(result.firstShortfallYear).toBe(4);
   });
 
@@ -137,7 +150,7 @@ describe("Roth conversion ladder", () => {
       expenses: 10000, cash0: annualNeed * 5, penaltyFreeAge: 100, horizon: 5,
     });
     const housing = flatHousing(params.horizon);
-    const result = simulateScenario(params, housing, noDownshift);
+    const result = simulateScenario(params, housing, bothOffFullIncome);
     expect(result.firstShortfallYear).toBeNull();
   });
 
@@ -146,9 +159,17 @@ describe("Roth conversion ladder", () => {
       startAge: 55, penaltyFreeAge: 59, trad0: 1000000, ladderOn: true, convertPerPerson: 8000, horizon: 6,
     });
     const housing = flatHousing(params.horizon);
-    const result = simulateScenario(params, housing, noDownshift);
+    const result = simulateScenario(params, housing, bothOffFullIncome);
     // Converts only while age < 59: ages 55-58 -> years 0-3 -> 4 years x 16,000/yr.
     expect(result.totalConverted).toBeCloseTo(64000, 0);
+  });
+
+  it("starts converting only once BOTH people are off full income, not just one", () => {
+    const params = baseParams({ trad0: 1000000, ladderOn: true, convertPerPerson: 8000, horizon: 1 });
+    const housing = flatHousing(params.horizon);
+    // Person 1 downshifts immediately; person 2 stays at full income throughout.
+    const onlyOneDownshifts = simulateScenario(params, housing, { year1: 0, pct1: 50, retireYear1: NEVER, year2: NEVER, pct2: 100, retireYear2: NEVER });
+    expect(onlyOneDownshifts.totalConverted).toBe(0);
   });
 });
 
@@ -212,6 +233,76 @@ describe("uninsured healthcare surcharge", () => {
     const bothRetire = simulateScenario(base, housing, { year1: NEVER, pct1: 100, retireYear1: 1, year2: NEVER, pct2: 100, retireYear2: 1 });
     const deltaBothRetire = bothRetire.rows[2].total - bothRetire.rows[1].total;
     expect(deltaBothRetire).toBeCloseTo(-3000 * 2, 0); // no income, just the surcharge
+  });
+});
+
+describe("capital gains tax on taxable sales", () => {
+  it("reduces net worth when a taxable sale realizes a gain, vs. an identical sale with no gain", () => {
+    // Two households with the same taxable balance and the same $60,000/yr shortfall need,
+    // differing only in cost basis: one has no embedded gain (basis == balance), the other
+    // has the whole balance as gain. The all-gain household should end up with less net worth,
+    // since part of every dollar sold goes to capital gains tax instead of covering the need.
+    const shared = { expenses: 60000, taxable0: 1000000, gaRate: 5.5, horizon: 1 };
+    const noGain = simulateScenario(baseParams({ ...shared, taxableBasis0: 1000000 }), flatHousing(1), noDownshift);
+    const allGain = simulateScenario(baseParams({ ...shared, taxableBasis0: 0 }), flatHousing(1), noDownshift);
+    expect(allGain.rows[1].total).toBeLessThan(noGain.rows[1].total);
+    expect(allGain.totalWithdrawalTax).toBeGreaterThan(0);
+    expect(noGain.totalWithdrawalTax).toBe(0);
+  });
+
+  it("does not tax new contributions, only realizes gain on what's actually sold", () => {
+    // A pure surplus year (no withdrawal) should owe no capital gains tax regardless of basis.
+    const params = baseParams({ income1: 200000, gaRate: 5.5, taxable0: 500000, taxableBasis0: 100000, horizon: 1 });
+    const housing = flatHousing(params.horizon);
+    const result = simulateScenario(params, housing, { year1: NEVER, pct1: 100, retireYear1: 1, year2: NEVER, pct2: 100, retireYear2: 0 });
+    expect(result.totalWithdrawalTax).toBe(0);
+  });
+
+  it("basis grows only from new contributions, not from investment growth", () => {
+    // Year 0: no income, no expenses -> cashflow exactly 0, so the account only moves via
+    // market growth (taxableBasis0 == taxable0, so it starts with zero embedded gain). Year 1
+    // hits it with a big one-time cost that drains the whole balance. If basis had tracked
+    // year 0's growth too, this withdrawal would still show zero gain (and zero tax); since
+    // basis only reflects contributions, the grown portion is taxable.
+    const housingWithdrawalYear1: HousingYearRow[] = [
+      { housingCost: 0, oneTime: 0, equity: 0 },
+      { housingCost: 0, oneTime: 200000, equity: 0 },
+    ];
+    const withGrowth = simulateScenario(
+      baseParams({ taxable0: 100000, taxableBasis0: 100000, growthRate: 6, gaRate: 5.5, horizon: 1 }),
+      housingWithdrawalYear1, noDownshift,
+    );
+    const noGrowth = simulateScenario(
+      baseParams({ taxable0: 100000, taxableBasis0: 100000, growthRate: 0, gaRate: 5.5, horizon: 1 }),
+      housingWithdrawalYear1, noDownshift,
+    );
+    expect(withGrowth.totalWithdrawalTax).toBeGreaterThan(0);
+    expect(noGrowth.totalWithdrawalTax).toBe(0);
+  });
+});
+
+describe("accessible funds", () => {
+  it("excludes Traditional and Roth growth before penalty-free age, even though total counts them", () => {
+    const params = baseParams({ trad0: 5000000, penaltyFreeAge: 100, horizon: 0 });
+    const housing = flatHousing(0);
+    const result = simulateScenario(params, housing, noDownshift);
+    expect(result.rows[0].accessible).toBe(0); // nothing accessible: cash, taxable, Roth basis, and conversions are all 0
+    expect(result.rows[0].total).toBeCloseTo(5000000, 0); // net worth looks fine — that gap is the whole point of this chart
+  });
+
+  it("counts every source, including Traditional, once penalty-free age is reached", () => {
+    const params = baseParams({ startAge: 60, penaltyFreeAge: 59, trad0: 1000000, horizon: 0 });
+    const housing = flatHousing(0);
+    const result = simulateScenario(params, housing, noDownshift);
+    expect(result.rows[0].accessible).toBeCloseTo(1000000, 0);
+  });
+
+  it("is a snapshot of starting balances, unaffected by a one-time cost incurred that same year", () => {
+    const params = baseParams({ expenses: 40000, taxable0: 200000, horizon: 0 });
+    const withOneTime = simulateScenario(params, flatHousing(0, { oneTime: 5000000 }), noDownshift);
+    const withoutOneTime = simulateScenario(params, flatHousing(0), noDownshift);
+    expect(withOneTime.rows[0].accessible).toBeCloseTo(200000, 0);
+    expect(withOneTime.rows[0].accessible).toBeCloseTo(withoutOneTime.rows[0].accessible, 6);
   });
 });
 
