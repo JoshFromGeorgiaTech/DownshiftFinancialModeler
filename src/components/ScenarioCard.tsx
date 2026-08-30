@@ -23,16 +23,16 @@ export function ScenarioCard({ s, person1Name, person2Name, onChange }: Scenario
           <div className={styles.personLabel}>{person1Name}</div>
           <div className={styles.fields}>
             <Field label="Downshift in" value={s.year1} onChange={(v) => onChange("year1", v)} min={0} max={30} step={1} suffix=" yrs" disabled={!s.enabled} />
-            <Field label="Income after" value={s.incomePct1} onChange={(v) => onChange("incomePct1", v)} min={0} max={100} step={5} suffix="%" disabled={!s.enabled} />
-            <Field label="Retire fully in" value={s.retireYear1} onChange={(v) => onChange("retireYear1", v)} min={0} max={45} step={1} suffix=" yrs" disabled={!s.enabled} />
+            <Field label="Income after" value={s.incomePct1} onChange={(v) => onChange("incomePct1", v)} min={0} max={100} step={5} suffix="%" disabled={!s.enabled} hint="Percent of current salary after downshifting. Leave at 100% and the downshift year does nothing — that person's income only changes at their retirement year." />
+            <Field label="Retire fully in" value={s.retireYear1} onChange={(v) => onChange("retireYear1", v)} min={0} max={45} step={1} suffix=" yrs" disabled={!s.enabled} hint="Years from today until income goes to zero. Separate from downshift, so you can model cutting back at 40 and stopping entirely at 55." />
           </div>
         </div>
         <div>
           <div className={styles.personLabel}>{person2Name}</div>
           <div className={styles.fields}>
             <Field label="Downshift in" value={s.year2} onChange={(v) => onChange("year2", v)} min={0} max={30} step={1} suffix=" yrs" disabled={!s.enabled} />
-            <Field label="Income after" value={s.incomePct2} onChange={(v) => onChange("incomePct2", v)} min={0} max={100} step={5} suffix="%" disabled={!s.enabled} />
-            <Field label="Retire fully in" value={s.retireYear2} onChange={(v) => onChange("retireYear2", v)} min={0} max={45} step={1} suffix=" yrs" disabled={!s.enabled} />
+            <Field label="Income after" value={s.incomePct2} onChange={(v) => onChange("incomePct2", v)} min={0} max={100} step={5} suffix="%" disabled={!s.enabled} hint="Percent of current salary after downshifting. Leave at 100% and the downshift year does nothing — that person's income only changes at their retirement year." />
+            <Field label="Retire fully in" value={s.retireYear2} onChange={(v) => onChange("retireYear2", v)} min={0} max={45} step={1} suffix=" yrs" disabled={!s.enabled} hint="Years from today until income goes to zero. Separate from downshift, so you can model cutting back at 40 and stopping entirely at 55." />
           </div>
         </div>
       </div>

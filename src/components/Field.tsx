@@ -1,6 +1,7 @@
 import React from "react";
 import shared from "../styles/shared.module.css";
 import styles from "./Field.module.css";
+import { Hint } from "./Hint.js";
 
 interface FieldProps {
   label: string;
@@ -12,9 +13,10 @@ interface FieldProps {
   prefix?: string;
   suffix?: string;
   disabled?: boolean;
+  hint?: string;
 }
 
-export function Field({ label, value, onChange, min, max, step, prefix = "", suffix = "", disabled }: FieldProps) {
+export function Field({ label, value, onChange, min, max, step, prefix = "", suffix = "", disabled, hint }: FieldProps) {
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     if (raw === "" || raw === "-") { onChange(0); return; }
@@ -31,7 +33,10 @@ export function Field({ label, value, onChange, min, max, step, prefix = "", suf
   return (
     <div className={styles.wrap} data-disabled={disabled || undefined}>
       <div className={styles.labelRow}>
-        <span className={shared.eyebrow}>{label}</span>
+        <span>
+          <span className={shared.eyebrow}>{label}</span>
+          {hint && <Hint text={hint} />}
+        </span>
         <div className={styles.valueRow}>
           {prefix && <span>{prefix}</span>}
           <input
