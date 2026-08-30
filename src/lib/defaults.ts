@@ -2,6 +2,7 @@ import { colors } from "./colors.js";
 import type { Defaults } from "../types.js";
 
 export const DEFAULTS: Defaults = {
+  person1Name: "Person 1", person2Name: "Person 2",
   startAge: 29, income1: 170000, income2: 150000, gaRate: 5.5, expenses: 110000, growthRate: 6, horizon: 30, penaltyFreeAge: 59,
   kidsOn: true, numKids: 2, infantCost: 18000, infantYears: 4, laterCost: 8000, kidsStartYear: 3, kidsDuration: 22,
   trad0: 450000, roth0: 150000, rothBasis0: 90000, taxable0: 540000, cash0: 60000, hsa0: 50000,

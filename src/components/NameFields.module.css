@@ -1,0 +1,27 @@
+.row {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-panel-border);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 0 2px 2px;
+  outline: none;
+  min-width: 140px;
+}
+
+.input:focus {
+  border-bottom-color: var(--color-amber);
+}

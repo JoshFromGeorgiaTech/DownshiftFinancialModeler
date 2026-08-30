@@ -6,10 +6,12 @@ import styles from "./ScenarioCard.module.css";
 
 interface ScenarioCardProps {
   s: Scenario;
+  person1Name: string;
+  person2Name: string;
   onChange: (field: keyof Scenario, value: number | boolean) => void;
 }
 
-export function ScenarioCard({ s, onChange }: ScenarioCardProps) {
+export function ScenarioCard({ s, person1Name, person2Name, onChange }: ScenarioCardProps) {
   return (
     <div>
       <div className={styles.toggleRow}>
@@ -18,7 +20,7 @@ export function ScenarioCard({ s, onChange }: ScenarioCardProps) {
       </div>
       <div className={styles.grid}>
         <div>
-          <div className={styles.personLabel}>Person 1</div>
+          <div className={styles.personLabel}>{person1Name}</div>
           <div className={styles.fields}>
             <Field label="Downshift in" value={s.year1} onChange={(v) => onChange("year1", v)} min={0} max={30} step={1} suffix=" yrs" disabled={!s.enabled} />
             <Field label="Income after" value={s.incomePct1} onChange={(v) => onChange("incomePct1", v)} min={0} max={100} step={5} suffix="%" disabled={!s.enabled} />
@@ -26,7 +28,7 @@ export function ScenarioCard({ s, onChange }: ScenarioCardProps) {
           </div>
         </div>
         <div>
-          <div className={styles.personLabel}>Person 2</div>
+          <div className={styles.personLabel}>{person2Name}</div>
           <div className={styles.fields}>
             <Field label="Downshift in" value={s.year2} onChange={(v) => onChange("year2", v)} min={0} max={30} step={1} suffix=" yrs" disabled={!s.enabled} />
             <Field label="Income after" value={s.incomePct2} onChange={(v) => onChange("incomePct2", v)} min={0} max={100} step={5} suffix="%" disabled={!s.enabled} />
