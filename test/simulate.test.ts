@@ -110,6 +110,111 @@ describe("withdrawal waterfall ordering", () => {
   });
 });
 
+describe("Roth conversion ladder", () => {
+  // Converting 8,000/person/yr at $0 wages costs conversionTax(0,0,8000,0) = 800/person = 1,600/yr
+  // in ordinary income tax, charged against cashflow the same year it's converted — so each year's
+  // real cash need is 10,000 (expenses) + 1,600 (that year's own conversion tax) = 11,600.
+  const annualNeed = 11600;
+
+  it("does not let an unseasoned conversion cover a shortfall before its seasoning year", () => {
+    // Cash covers years 0-3 exactly (4 x 11,600 = 46,400); year 4 has nothing else accessible
+    // (not penalty-free, no basis/taxable left) and year 0's conversion doesn't season until
+    // year 0 + seasoningYears(5) = 5 — one year too late to help year 4.
+    const params = baseParams({
+      trad0: 1000000, ladderOn: true, convertPerPerson: 8000, seasoningYears: 5,
+      expenses: 10000, cash0: annualNeed * 4, penaltyFreeAge: 100, horizon: 4,
+    });
+    const housing = flatHousing(params.horizon);
+    const result = simulateScenario(params, housing, noDownshift);
+    expect(result.firstShortfallYear).toBe(4);
+  });
+
+  it("lets a conversion cover a shortfall once it reaches its seasoning year", () => {
+    // Same setup, but cash covers one more year (0-4) and the horizon reaches year 5 exactly
+    // when year 0's conversion (16,000) seasons — comfortably covering the 11,600 need.
+    const params = baseParams({
+      trad0: 1000000, ladderOn: true, convertPerPerson: 8000, seasoningYears: 5,
+      expenses: 10000, cash0: annualNeed * 5, penaltyFreeAge: 100, horizon: 5,
+    });
+    const housing = flatHousing(params.horizon);
+    const result = simulateScenario(params, housing, noDownshift);
+    expect(result.firstShortfallYear).toBeNull();
+  });
+
+  it("stops converting once penalty-free age is reached", () => {
+    const params = baseParams({
+      startAge: 55, penaltyFreeAge: 59, trad0: 1000000, ladderOn: true, convertPerPerson: 8000, horizon: 6,
+    });
+    const housing = flatHousing(params.horizon);
+    const result = simulateScenario(params, housing, noDownshift);
+    // Converts only while age < 59: ages 55-58 -> years 0-3 -> 4 years x 16,000/yr.
+    expect(result.totalConverted).toBeCloseTo(64000, 0);
+  });
+});
+
+describe("kids costs", () => {
+  it("switches from the infant rate to the school-age rate at the right kid-age, and stops after kidsDuration", () => {
+    const params = baseParams({
+      kidsOn: true, numKids: 1, infantCost: 18000, infantYears: 4, laterCost: 8000,
+      kidsStartYear: 2, kidsDuration: 10, cash0: 10000000, horizon: 13,
+    });
+    const housing = flatHousing(params.horizon);
+    const result = simulateScenario(params, housing, noDownshift);
+    const delta = (y: number) => result.rows[y + 1].total - result.rows[y].total;
+
+    expect(delta(2)).toBeCloseTo(-18000, 0);  // kid age 0: infant rate
+    expect(delta(5)).toBeCloseTo(-18000, 0);  // kid age 3: still infant rate (infantYears=4)
+    expect(delta(6)).toBeCloseTo(-8000, 0);   // kid age 4: switches to school-age rate
+    expect(delta(11)).toBeCloseTo(-8000, 0);  // kid age 9: last active year (kidsDuration=10)
+    expect(delta(12)).toBeCloseTo(0, 0);      // kid age 10: support window closed, no more cost
+  });
+});
+
+describe("employer match", () => {
+  it("caps the match at matchCapPct of gross even when the deferral would earn more", () => {
+    const income1 = 200000;
+    const tradTarget = 100000; // p1's contribution = tradTarget/2 = 50,000
+    const employerMatchPct = 50, employerMatchCapPct = 6;
+    const p1TradContrib = tradTarget / 2;
+    const p1Net = computeNetForPerson(income1, 0, p1TradContrib).net;
+
+    // expenses = p1Net makes cashflow exactly 0, so taxable/roth/cash/hsa never move —
+    // whatever ends up in `total` after year 0 is purely this year's Traditional contribution + match.
+    const params = baseParams({
+      income1, tradTarget, employerMatchPct, employerMatchCapPct, hsaTarget: 0, expenses: p1Net, horizon: 1,
+    });
+    const housing = flatHousing(params.horizon);
+    const result = simulateScenario(params, housing, { year1: NEVER, pct1: 100, retireYear1: 1, year2: NEVER, pct2: 100, retireYear2: 0 });
+
+    const uncappedMatch = p1TradContrib * (employerMatchPct / 100); // 25,000
+    const cappedMatch = income1 * (employerMatchCapPct / 100);     // 12,000
+    expect(cappedMatch).toBeLessThan(uncappedMatch); // sanity: the cap is actually binding in this setup
+    expect(result.rows[1].total).toBeCloseTo(p1TradContrib + cappedMatch, 0);
+  });
+});
+
+describe("uninsured healthcare surcharge", () => {
+  it("applies only once BOTH people are off full income, not just one", () => {
+    const income = 100000;
+    const netAtFullIncome = computeNetForPerson(income, 0, 0).net;
+    const base = baseParams({
+      income1: income, income2: income, uninsuredOn: true, medCostPerAdult: 3000, numUninsuredAdults: 2,
+      cash0: 10000000, horizon: 2,
+    });
+    const housing = flatHousing(base.horizon);
+
+    // Person 1 retires at year 1; person 2 never does -> surcharge should NOT apply.
+    const onlyOneRetires = simulateScenario(base, housing, { year1: NEVER, pct1: 100, retireYear1: 1, year2: NEVER, pct2: 100, retireYear2: NEVER });
+    const deltaOneRetires = onlyOneRetires.rows[2].total - onlyOneRetires.rows[1].total;
+    expect(deltaOneRetires).toBeCloseTo(netAtFullIncome, 0); // just person 2's income, no surcharge subtracted
+
+    // Both retire at year 1 -> surcharge should apply from year 1 on.
+    const bothRetire = simulateScenario(base, housing, { year1: NEVER, pct1: 100, retireYear1: 1, year2: NEVER, pct2: 100, retireYear2: 1 });
+    const deltaBothRetire = bothRetire.rows[2].total - bothRetire.rows[1].total;
+    expect(deltaBothRetire).toBeCloseTo(-3000 * 2, 0); // no income, just the surcharge
+  });
+});
+
 describe("shortfall detection", () => {
   it("flags a shortfall once every accessible source is exhausted", () => {
     const params = baseParams({ expenses: 10000, horizon: 0 }); // no balances at all, not penalty-free
