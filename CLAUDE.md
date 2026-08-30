@@ -63,7 +63,7 @@ These were all real bugs found by numeric audit, not by reading the code. Preser
 - **Housing is added, never delta'd.** `Living expenses` is defined as *excluding* housing; the actual housing cost (rent, or full mortgage+tax+insurance+PMI) is added every year. An earlier delta-based version double-counted or under-counted depending on an unstated assumption.
 - **Traditional withdrawals must be grossed up.** Withdrawing $X nets less than $X. `grossUpTraditional` iterates to convergence and caps at the available balance.
 - **Pretax contributions reduce taxable income but not FICA wages.** Both halves of that are correct and load-bearing.
-- **Nominal mortgage P&I is deflated; tax/insurance are not.** The model runs in real dollars. A fixed mortgage payment shrinks in real terms; costs that scale with home value don't.
+- **Nominal mortgage P&I is deflated; tax/insurance are not.** The model runs in real dollars. A fixed mortgage payment shrinks in real terms; costs that scale with home value don't. The loan balance is nominal too (it's a fixed contract amount, same as P&I) — `buildHousingSchedule` deflates it before comparing it against the real-dollar `homeValue` for equity and the PMI LTV check, while leaving the PMI dollar *amount* itself on the nominal balance (like P&I, it gets deflated alongside P&I afterward). Mixing nominal and real here previously understated home equity by tens of thousands of dollars and over-extended the PMI window — see `test/mortgage.test.ts`'s deflation tests before changing this.
 
 ## Domain notes
 
@@ -92,10 +92,6 @@ These were all real bugs found by numeric audit, not by reading the code. Preser
 5. **RSU income modeled as plain salary.** No vest schedule, no concentration risk.
 6. **Social Security is asymmetric** — FICA is paid, benefits are never received.
 7. Missing inputs: salary growth, college/529, one-time events, ACA premium modeling, state moves, mortgage interest deduction, emergency-fund floor, Rule of 55, 72(t)/SEPP.
-
-## Known bugs (tracked, not yet fixed)
-
-- **Home equity/LTV mix nominal mortgage balance with real home value.** `buildHousingSchedule` in `src/lib/mortgage.ts` deflates P&I to real dollars (per the mortgage-deflation invariant above) but does not deflate `remainingBalance`'s output before subtracting it from `homeValue` for `equity`, or before dividing it into `homeValue` for the PMI `ltv` check. Since the loan balance is a nominal-dollar quantity and `homeValue` is real, this understates displayed home equity (by ~$56K–$117K over 5–20 years at this app's defaults) and over-extends the PMI window at low down payments. Fix: multiply `balance` by the same `deflator` used for P&I before computing `ltv` and `equity` (not before computing the PMI dollar amount itself, which is correctly nominal). `test/mortgage.test.ts` has a test pinned to the current (buggy) behavior — update it in the same change that fixes this.
 
 ## Working conventions
 

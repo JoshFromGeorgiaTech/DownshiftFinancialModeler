@@ -1,9 +1,9 @@
-// NOTE: `remainingBalance` returns a NOMINAL-dollar figure (loan contracts are nominal),
-// while `homeValue` in buildHousingSchedule is treated as already real-dollar (appreciationRate
-// is a real rate, per CLAUDE.md's mortgage-deflation invariant). Equity/LTV below subtract the
-// nominal balance from the real home value without deflating the balance first — a known,
-// tracked bug (understates equity, over-extends the PMI window at low down payments). Preserved
-// as-is here since this module is a behavior-preserving extraction; see project notes for the fix.
+// NOTE: `remainingBalance` returns a NOMINAL-dollar figure (loan contracts are nominal), while
+// `homeValue` in buildHousingSchedule is treated as already real-dollar (appreciationRate is a
+// real rate, per CLAUDE.md's mortgage-deflation invariant). Equity and the PMI LTV check both
+// deflate the balance to real dollars first so they're computed against `homeValue` on a
+// consistent basis. The PMI dollar *amount* itself is deliberately left on the nominal balance —
+// like P&I, it's a nominal premium that then gets deflated alongside P&I in `annualCost`.
 
 import type { MortgageSnapshotInputs, MortgageSnapshot, HousingScheduleInputs, HousingYearRow } from "../types.js";
 
@@ -61,16 +61,17 @@ export function buildHousingSchedule({
       const kk = y - houseYear;
       const homeValue = housePrice * Math.pow(1 + appreciationRate / 100, kk);
       const balance = remainingBalance(loanAmount, mortgageRate, loanTermYears, kk * 12);
+      const deflator = Math.pow(1 + inflationRate / 100, -kk);
+      const balanceReal = balance * deflator;
       const monthlyTax = homeValue * propertyTaxRate / 100 / 12;
       const monthlyInsMaint = homeValue * insMaintPct / 100 / 12;
-      const ltv = homeValue > 0 ? balance / homeValue : 0;
+      const ltv = homeValue > 0 ? balanceReal / homeValue : 0;
       const monthlyPMI = ltv > 0.8 ? balance * 0.005 / 12 : 0;
-      const deflator = Math.pow(1 + inflationRate / 100, -kk);
       const annualCost = ((monthlyPIAmt + monthlyPMI) * deflator + monthlyTax + monthlyInsMaint) * 12;
       housingByYear.push({
         housingCost: annualCost,
         oneTime: y === houseYear ? downPaymentAmount : 0,
-        equity: homeValue - balance,
+        equity: homeValue - balanceReal,
       });
     } else {
       housingByYear.push({ housingCost: currentHousingCost, oneTime: 0, equity: 0 });

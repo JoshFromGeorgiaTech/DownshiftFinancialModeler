@@ -72,21 +72,44 @@ describe("buildHousingSchedule", () => {
     });
   });
 
-  // KNOWN BUG (tracked, not yet fixed): `equity` subtracts a nominal loan balance from a
-  // real-dollar home value without deflating the balance first, understating equity more
-  // as years pass. This test pins the CURRENT (buggy) behavior so a future fix is a visible,
-  // deliberate change to this assertion rather than a silent regression.
-  it("[known bug] currently mixes nominal balance with real home value in equity", () => {
+  // Equity must compare the home value against the loan balance on a consistent (real-dollar)
+  // basis: the balance is a nominal-dollar figure (loan contracts are nominal), so it needs the
+  // same deflator as P&I before being subtracted from the real-dollar home value. Previously the
+  // nominal balance was used directly, understating equity — this pins the fixed behavior so a
+  // regression back to the nominal balance shows up as a visible test failure.
+  it("deflates the loan balance to real dollars before computing equity and LTV", () => {
     const schedule = buildHousingSchedule(base);
     const kk = 10 - base.houseYear; // years since purchase at the last row
     const homeValueReal = base.housePrice * Math.pow(1 + base.appreciationRate / 100, kk);
     const loanAmount = base.housePrice * (1 - base.downPaymentPct / 100);
     const nominalBalance = remainingBalance(loanAmount, base.mortgageRate, base.loanTermYears, kk * 12);
     const deflator = Math.pow(1 + base.inflationRate / 100, -kk);
-    const correctRealBalance = nominalBalance * deflator;
+    const realBalance = nominalBalance * deflator;
 
     const codedEquity = schedule[10].equity;
-    expect(codedEquity).toBeCloseTo(homeValueReal - nominalBalance, 2); // current (buggy) behavior
-    expect(codedEquity).toBeLessThan(homeValueReal - correctRealBalance); // understates true equity
+    expect(codedEquity).toBeCloseTo(homeValueReal - realBalance, 2);
+    expect(codedEquity).toBeGreaterThan(homeValueReal - nominalBalance); // strictly more than the old (buggy) nominal-balance figure
+  });
+
+  it("uses the deflated (real) balance for the PMI LTV check, not the nominal balance", () => {
+    // A low down payment keeps nominal LTV above 80% for a long time, but the inflation-deflated
+    // real balance shrinks faster — PMI should drop off earlier under the real-balance LTV than
+    // it would under the raw nominal balance.
+    const lowDownPayment = { ...base, downPaymentPct: 5, horizon: 15 };
+    const schedule = buildHousingSchedule(lowDownPayment);
+    const loanAmount = lowDownPayment.housePrice * (1 - lowDownPayment.downPaymentPct / 100);
+
+    for (let y = lowDownPayment.houseYear; y <= lowDownPayment.horizon; y++) {
+      const kk = y - lowDownPayment.houseYear;
+      const homeValue = lowDownPayment.housePrice * Math.pow(1 + lowDownPayment.appreciationRate / 100, kk);
+      const nominalBalance = remainingBalance(loanAmount, lowDownPayment.mortgageRate, lowDownPayment.loanTermYears, kk * 12);
+      const deflator = Math.pow(1 + lowDownPayment.inflationRate / 100, -kk);
+      const realLtv = (nominalBalance * deflator) / homeValue;
+      const nominalLtv = nominalBalance / homeValue;
+      // Sanity check the two LTVs actually diverge in this scenario (real balance is smaller).
+      if (kk > 0) expect(realLtv).toBeLessThan(nominalLtv);
+      // The equity figure must be consistent with the real-LTV-gated PMI decision, not the nominal one.
+      expect(schedule[y].equity).toBeCloseTo(homeValue - nominalBalance * deflator, 2);
+    }
   });
 });
