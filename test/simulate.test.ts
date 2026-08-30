@@ -14,7 +14,10 @@ function baseParams(overrides: Partial<SimParams> = {}): SimParams {
     startAge: 30, income1: 0, income2: 0, gaRate: 0, expenses: 0, growthRate: 0, horizon: 1, penaltyFreeAge: 59,
     kidsOn: false, numKids: 0, infantCost: 0, infantYears: 0, laterCost: 0, kidsStartYear: 0, kidsDuration: 0,
     trad0: 0, roth0: 0, rothBasis0: 0, taxable0: 0, taxableBasis0: 0, cash0: 0, hsa0: 0,
-    tradTarget: 0, rothTarget: 0, hsaTarget: 0, employerMatchPct: 0, employerMatchCapPct: 0,
+    trad1TargetPre: 0, trad1TargetPost: 0, trad2TargetPre: 0, trad2TargetPost: 0,
+    roth1TargetPre: 0, roth1TargetPost: 0, roth2TargetPre: 0, roth2TargetPost: 0,
+    hsa1TargetPre: 0, hsa1TargetPost: 0, hsa2TargetPre: 0, hsa2TargetPost: 0,
+    employerMatchPct: 0, employerMatchCapPct: 0,
     planningEndAge: 60, swrAdjust: 0, ladderOn: false, convertPerPerson: 0, seasoningYears: 5,
     uninsuredOn: false, medCostPerAdult: 0, numUninsuredAdults: 0,
     ...overrides,
@@ -82,8 +85,8 @@ describe("clamping withdrawal sources at zero", () => {
 describe("surplus routing", () => {
   it("fills the Roth target, then routes the remainder to taxable (both count toward next year's total)", () => {
     const income1 = 100000;
-    const rothTarget = 10000;
-    const params = baseParams({ income1, rothTarget, horizon: 1 });
+    const roth1TargetPre = 10000;
+    const params = baseParams({ income1, roth1TargetPre, horizon: 1 });
     const housing = flatHousing(params.horizon);
     const result = simulateScenario(params, housing, { year1: NEVER, pct1: 100, retireYear1: 1, year2: NEVER, pct2: 100, retireYear2: 0 });
 
@@ -194,15 +197,15 @@ describe("kids costs", () => {
 describe("employer match", () => {
   it("caps the match at matchCapPct of gross even when the deferral would earn more", () => {
     const income1 = 200000;
-    const tradTarget = 100000; // p1's contribution = tradTarget/2 = 50,000
+    const trad1TargetPre = 50000; // p1's own contribution limit
     const employerMatchPct = 50, employerMatchCapPct = 6;
-    const p1TradContrib = tradTarget / 2;
+    const p1TradContrib = trad1TargetPre;
     const p1Net = computeNetForPerson(income1, 0, p1TradContrib).net;
 
     // expenses = p1Net makes cashflow exactly 0, so taxable/roth/cash/hsa never move —
     // whatever ends up in `total` after year 0 is purely this year's Traditional contribution + match.
     const params = baseParams({
-      income1, tradTarget, employerMatchPct, employerMatchCapPct, hsaTarget: 0, expenses: p1Net, horizon: 1,
+      income1, trad1TargetPre, employerMatchPct, employerMatchCapPct, hsa1TargetPre: 0, expenses: p1Net, horizon: 1,
     });
     const housing = flatHousing(params.horizon);
     const result = simulateScenario(params, housing, { year1: NEVER, pct1: 100, retireYear1: 1, year2: NEVER, pct2: 100, retireYear2: 0 });
@@ -211,6 +214,66 @@ describe("employer match", () => {
     const cappedMatch = income1 * (employerMatchCapPct / 100);     // 12,000
     expect(cappedMatch).toBeLessThan(uncappedMatch); // sanity: the cap is actually binding in this setup
     expect(result.rows[1].total).toBeCloseTo(p1TradContrib + cappedMatch, 0);
+  });
+});
+
+describe("pre/post-downshift contribution targets", () => {
+  it("switches a person's own Traditional target on their own downshift status, independent of the other person", () => {
+    const income1 = 200000, income2 = 200000;
+    const trad1TargetPre = 40000, trad1TargetPost = 5000;
+    const trad2TargetPre = 40000, trad2TargetPost = 5000;
+    // Person 1 downshifts to 50% pay immediately (off full income at y=0, so the POST target
+    // applies); person 2 stays at full income (PRE target applies).
+    const p1GrossAtY0 = income1 * 0.5;
+    const p1TradContrib = Math.min(trad1TargetPost, p1GrossAtY0);
+    const p2TradContrib = Math.min(trad2TargetPre, income2);
+    const p1Net = computeNetForPerson(p1GrossAtY0, 0, p1TradContrib).net;
+    const p2Net = computeNetForPerson(income2, 0, p2TradContrib).net;
+
+    // expenses = exact combined take-home makes cashflow exactly 0, so year-0's total movement
+    // is purely this year's Traditional contributions.
+    const params = baseParams({
+      income1, income2, trad1TargetPre, trad1TargetPost, trad2TargetPre, trad2TargetPost,
+      expenses: p1Net + p2Net, horizon: 1,
+    });
+    const housing = flatHousing(params.horizon);
+    const result = simulateScenario(params, housing, {
+      year1: 0, pct1: 50, retireYear1: NEVER, year2: NEVER, pct2: 100, retireYear2: NEVER,
+    });
+
+    expect(p1TradContrib).toBeLessThan(trad1TargetPre); // sanity: the post target is actually binding
+    expect(result.totalWithdrawalTax).toBe(0);
+    expect(result.rows[1].total).toBeCloseTo(p1TradContrib + p2TradContrib, 0);
+  });
+
+  it("routes a downshifted person's surplus to taxable instead of Roth once their Roth target drops post-downshift", () => {
+    // Roth vs. taxable can't be told apart from `total` alone (both are balances that grow the
+    // same way pre-withdrawal) — the observable difference only shows up as capital gains tax
+    // on a later withdrawal, since money routed to Roth is tax-free and money routed to taxable
+    // carries embedded gain. So this compares two runs that differ only in whether Roth room
+    // survives the downshift, and checks the downstream tax difference.
+    const income1 = 100000, growthRate = 10, horizon = 10;
+    const roth1TargetPre = 1_000_000; // effectively unlimited — captures ~all surplus into Roth
+    const hugeOneTime = 10_000_000; // forces a full liquidation of whatever sits in taxable at the end
+
+    const downshift: DownshiftConfig = {
+      year1: 1, pct1: 50, retireYear1: NEVER, // active (PRE) in year 0; downshifted (POST), not retired, from year 1
+      year2: NEVER, pct2: 100, retireYear2: NEVER,
+    };
+    // Nine years of downshifted-surplus contributions compounding at 10%/yr builds up a large
+    // embedded gain by the time it's liquidated, so the realized gain clears the 0% LTCG bracket
+    // regardless of that year's ordinary income specifics.
+    const housing: HousingYearRow[] = Array.from({ length: horizon + 1 }, (_, y) => ({
+      housingCost: 0, oneTime: y === horizon ? hugeOneTime : 0, equity: 0,
+    }));
+    const runWith = (roth1TargetPost: number) =>
+      simulateScenario(baseParams({ income1, growthRate, roth1TargetPre, roth1TargetPost, horizon }), housing, downshift);
+
+    const unchanged = runWith(roth1TargetPre); // Roth room survives the downshift
+    const dropped = runWith(0); // Roth room drops to 0 once downshifted
+
+    expect(unchanged.totalWithdrawalTax).toBe(0); // everything stayed in Roth basis — tax-free
+    expect(dropped.totalWithdrawalTax).toBeGreaterThan(0); // year 1's surplus landed in taxable with embedded gain
   });
 });
 

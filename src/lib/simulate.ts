@@ -22,7 +22,10 @@ export function simulateScenario(params: SimParams, housingByYear: HousingYearRo
     startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
     kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
     trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0,
-    tradTarget, rothTarget, hsaTarget, employerMatchPct, employerMatchCapPct,
+    trad1TargetPre, trad1TargetPost, trad2TargetPre, trad2TargetPost,
+    roth1TargetPre, roth1TargetPost, roth2TargetPre, roth2TargetPost,
+    hsa1TargetPre, hsa1TargetPost, hsa2TargetPre, hsa2TargetPost,
+    employerMatchPct, employerMatchCapPct,
     planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
     uninsuredOn, medCostPerAdult, numUninsuredAdults,
   } = params;
@@ -56,12 +59,19 @@ export function simulateScenario(params: SimParams, housingByYear: HousingYearRo
     const p1Gross = y >= retireYear1 ? 0 : (y < year1 ? income1 : income1 * (pct1 / 100));
     const p2Gross = y >= retireYear2 ? 0 : (y < year2 ? income2 : income2 * (pct2 / 100));
 
-    // Traditional/HSA are pretax payroll elections — split evenly across the two incomes,
-    // each capped at that person's own gross (can't contribute more than you earn that year).
-    const p1TradContrib = Math.min(tradTarget / 2, p1Gross);
-    const p1HsaContrib = Math.min(hsaTarget / 2, Math.max(0, p1Gross - p1TradContrib));
-    const p2TradContrib = Math.min(tradTarget / 2, p2Gross);
-    const p2HsaContrib = Math.min(hsaTarget / 2, Math.max(0, p2Gross - p2TradContrib));
+    // Traditional/HSA/Roth targets are per-person (IRS elective-deferral, HSA, and IRA limits
+    // all apply per individual, and the model already treats each filer separately). Each
+    // person switches to their own post-downshift target once THEY are off full income (their
+    // own p1Active/p2Active), independent of the other person's schedule — a payroll election
+    // and MAGI-driven IRA eligibility are both personal, not household-level.
+    const p1TradTarget = p1Active ? trad1TargetPre : trad1TargetPost;
+    const p1HsaTarget = p1Active ? hsa1TargetPre : hsa1TargetPost;
+    const p2TradTarget = p2Active ? trad2TargetPre : trad2TargetPost;
+    const p2HsaTarget = p2Active ? hsa2TargetPre : hsa2TargetPost;
+    const p1TradContrib = Math.min(p1TradTarget, p1Gross);
+    const p1HsaContrib = Math.min(p1HsaTarget, Math.max(0, p1Gross - p1TradContrib));
+    const p2TradContrib = Math.min(p2TradTarget, p2Gross);
+    const p2HsaContrib = Math.min(p2HsaTarget, Math.max(0, p2Gross - p2TradContrib));
     const p1Net = computeNetForPerson(p1Gross, gaRate, p1TradContrib + p1HsaContrib).net;
     const p2Net = computeNetForPerson(p2Gross, gaRate, p2TradContrib + p2HsaContrib).net;
 
@@ -101,6 +111,13 @@ export function simulateScenario(params: SimParams, housingByYear: HousingYearRo
     let rothChange = 0, rothBasisChange = 0, taxableChange = 0, taxableBasisChange = 0, cashChange = 0, shortfall = 0;
 
     if (cashflow >= 0) {
+      // Each person's own Roth (IRA) target switches on their own downshift status, same as
+      // Traditional/HSA above — direct Roth eligibility phases out on that person's own MAGI,
+      // not the household's combined income. The combined household cashflow still funds both
+      // (the model tracks one pooled Roth balance, not per-person sub-accounts).
+      const p1RothTarget = p1Active ? roth1TargetPre : roth1TargetPost;
+      const p2RothTarget = p2Active ? roth2TargetPre : roth2TargetPost;
+      const rothTarget = p1RothTarget + p2RothTarget;
       let remaining = cashflow;
       rothChange = Math.min(rothTarget, remaining); remaining -= rothChange;
       rothBasisChange = rothChange;

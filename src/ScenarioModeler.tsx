@@ -53,9 +53,18 @@ export default function ScenarioModeler() {
   const [cash0, setCash0] = useState(DEFAULTS.cash0);
   const [hsa0, setHsa0] = useState(DEFAULTS.hsa0);
 
-  const [tradTarget, setTradTarget] = useState(DEFAULTS.tradTarget);
-  const [rothTarget, setRothTarget] = useState(DEFAULTS.rothTarget);
-  const [hsaTarget, setHsaTarget] = useState(DEFAULTS.hsaTarget);
+  const [trad1TargetPre, setTrad1TargetPre] = useState(DEFAULTS.trad1TargetPre);
+  const [trad1TargetPost, setTrad1TargetPost] = useState(DEFAULTS.trad1TargetPost);
+  const [trad2TargetPre, setTrad2TargetPre] = useState(DEFAULTS.trad2TargetPre);
+  const [trad2TargetPost, setTrad2TargetPost] = useState(DEFAULTS.trad2TargetPost);
+  const [roth1TargetPre, setRoth1TargetPre] = useState(DEFAULTS.roth1TargetPre);
+  const [roth1TargetPost, setRoth1TargetPost] = useState(DEFAULTS.roth1TargetPost);
+  const [roth2TargetPre, setRoth2TargetPre] = useState(DEFAULTS.roth2TargetPre);
+  const [roth2TargetPost, setRoth2TargetPost] = useState(DEFAULTS.roth2TargetPost);
+  const [hsa1TargetPre, setHsa1TargetPre] = useState(DEFAULTS.hsa1TargetPre);
+  const [hsa1TargetPost, setHsa1TargetPost] = useState(DEFAULTS.hsa1TargetPost);
+  const [hsa2TargetPre, setHsa2TargetPre] = useState(DEFAULTS.hsa2TargetPre);
+  const [hsa2TargetPost, setHsa2TargetPost] = useState(DEFAULTS.hsa2TargetPost);
   const [employerMatchPct, setEmployerMatchPct] = useState(DEFAULTS.employerMatchPct);
   const [employerMatchCapPct, setEmployerMatchCapPct] = useState(DEFAULTS.employerMatchCapPct);
   const [inflationRate, setInflationRate] = useState(DEFAULTS.inflationRate);
@@ -117,9 +126,33 @@ export default function ScenarioModeler() {
           if (d.taxableBasis0 !== undefined) setTaxableBasis0(d.taxableBasis0);
           if (d.cash0 !== undefined) setCash0(d.cash0);
           if (d.hsa0 !== undefined) setHsa0(d.hsa0);
-          if (d.tradTarget !== undefined) setTradTarget(d.tradTarget);
-          if (d.rothTarget !== undefined) setRothTarget(d.rothTarget);
-          if (d.hsaTarget !== undefined) setHsaTarget(d.hsaTarget);
+          // Pre/post-downshift, per-person contribution targets replaced the old single
+          // combined tradTarget/rothTarget/hsaTarget fields. Migrate old saved data by
+          // splitting the combined value evenly across both people and both phases.
+          if (d.trad1TargetPre !== undefined) setTrad1TargetPre(d.trad1TargetPre);
+          else if (d.tradTarget !== undefined) setTrad1TargetPre(d.tradTarget / 2);
+          if (d.trad1TargetPost !== undefined) setTrad1TargetPost(d.trad1TargetPost);
+          else if (d.tradTarget !== undefined) setTrad1TargetPost(d.tradTarget / 2);
+          if (d.trad2TargetPre !== undefined) setTrad2TargetPre(d.trad2TargetPre);
+          else if (d.tradTarget !== undefined) setTrad2TargetPre(d.tradTarget / 2);
+          if (d.trad2TargetPost !== undefined) setTrad2TargetPost(d.trad2TargetPost);
+          else if (d.tradTarget !== undefined) setTrad2TargetPost(d.tradTarget / 2);
+          if (d.roth1TargetPre !== undefined) setRoth1TargetPre(d.roth1TargetPre);
+          else if (d.rothTarget !== undefined) setRoth1TargetPre(d.rothTarget / 2);
+          if (d.roth1TargetPost !== undefined) setRoth1TargetPost(d.roth1TargetPost);
+          else if (d.rothTarget !== undefined) setRoth1TargetPost(d.rothTarget / 2);
+          if (d.roth2TargetPre !== undefined) setRoth2TargetPre(d.roth2TargetPre);
+          else if (d.rothTarget !== undefined) setRoth2TargetPre(d.rothTarget / 2);
+          if (d.roth2TargetPost !== undefined) setRoth2TargetPost(d.roth2TargetPost);
+          else if (d.rothTarget !== undefined) setRoth2TargetPost(d.rothTarget / 2);
+          if (d.hsa1TargetPre !== undefined) setHsa1TargetPre(d.hsa1TargetPre);
+          else if (d.hsaTarget !== undefined) setHsa1TargetPre(d.hsaTarget / 2);
+          if (d.hsa1TargetPost !== undefined) setHsa1TargetPost(d.hsa1TargetPost);
+          else if (d.hsaTarget !== undefined) setHsa1TargetPost(d.hsaTarget / 2);
+          if (d.hsa2TargetPre !== undefined) setHsa2TargetPre(d.hsa2TargetPre);
+          else if (d.hsaTarget !== undefined) setHsa2TargetPre(d.hsaTarget / 2);
+          if (d.hsa2TargetPost !== undefined) setHsa2TargetPost(d.hsa2TargetPost);
+          else if (d.hsaTarget !== undefined) setHsa2TargetPost(d.hsaTarget / 2);
           if (d.employerMatchPct !== undefined) setEmployerMatchPct(d.employerMatchPct);
           if (d.employerMatchCapPct !== undefined) setEmployerMatchCapPct(d.employerMatchCapPct);
           if (d.inflationRate !== undefined) setInflationRate(d.inflationRate);
@@ -159,7 +192,10 @@ export default function ScenarioModeler() {
       person1Name, person2Name,
       startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
       kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
-      trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
+      trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0,
+      trad1TargetPre, trad1TargetPost, trad2TargetPre, trad2TargetPost,
+      roth1TargetPre, roth1TargetPost, roth2TargetPre, roth2TargetPost,
+      hsa1TargetPre, hsa1TargetPost, hsa2TargetPre, hsa2TargetPost,
       employerMatchPct, employerMatchCapPct, inflationRate, planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
       houseOn, housePrice, downPaymentPct, mortgageRate, loanTermYears, propertyTaxRate,
       insMaintPct, currentHousingCost, appreciationRate, houseYear,
@@ -171,7 +207,10 @@ export default function ScenarioModeler() {
     return () => clearTimeout(t);
   }, [loaded, person1Name, person2Name, startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
       kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
-      trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
+      trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0,
+      trad1TargetPre, trad1TargetPost, trad2TargetPre, trad2TargetPost,
+      roth1TargetPre, roth1TargetPost, roth2TargetPre, roth2TargetPost,
+      hsa1TargetPre, hsa1TargetPost, hsa2TargetPre, hsa2TargetPost,
       employerMatchPct, employerMatchCapPct, inflationRate, planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
       houseOn, housePrice, downPaymentPct, mortgageRate, loanTermYears, propertyTaxRate,
       insMaintPct, currentHousingCost, appreciationRate, houseYear,
@@ -189,7 +228,12 @@ export default function ScenarioModeler() {
     setKidsStartYear(DEFAULTS.kidsStartYear); setKidsDuration(DEFAULTS.kidsDuration);
     setTrad0(DEFAULTS.trad0); setRoth0(DEFAULTS.roth0); setRothBasis0(DEFAULTS.rothBasis0);
     setTaxable0(DEFAULTS.taxable0); setTaxableBasis0(DEFAULTS.taxableBasis0); setCash0(DEFAULTS.cash0); setHsa0(DEFAULTS.hsa0);
-    setTradTarget(DEFAULTS.tradTarget); setRothTarget(DEFAULTS.rothTarget); setHsaTarget(DEFAULTS.hsaTarget);
+    setTrad1TargetPre(DEFAULTS.trad1TargetPre); setTrad1TargetPost(DEFAULTS.trad1TargetPost);
+    setTrad2TargetPre(DEFAULTS.trad2TargetPre); setTrad2TargetPost(DEFAULTS.trad2TargetPost);
+    setRoth1TargetPre(DEFAULTS.roth1TargetPre); setRoth1TargetPost(DEFAULTS.roth1TargetPost);
+    setRoth2TargetPre(DEFAULTS.roth2TargetPre); setRoth2TargetPost(DEFAULTS.roth2TargetPost);
+    setHsa1TargetPre(DEFAULTS.hsa1TargetPre); setHsa1TargetPost(DEFAULTS.hsa1TargetPost);
+    setHsa2TargetPre(DEFAULTS.hsa2TargetPre); setHsa2TargetPost(DEFAULTS.hsa2TargetPost);
     setEmployerMatchPct(DEFAULTS.employerMatchPct); setEmployerMatchCapPct(DEFAULTS.employerMatchCapPct);
     setInflationRate(DEFAULTS.inflationRate);
     setPlanningEndAge(DEFAULTS.planningEndAge); setSwrAdjust(DEFAULTS.swrAdjust);
@@ -204,12 +248,12 @@ export default function ScenarioModeler() {
     setScenarios(DEFAULTS.scenarios);
   };
 
-  // Live tax snapshot at full income today
+  // Live tax snapshot at full income today — uses each person's pre-downshift targets.
   const taxSnapshot = useMemo(() => {
-    const p1TradContrib = Math.min(tradTarget / 2, income1);
-    const p1HsaContrib = Math.min(hsaTarget / 2, Math.max(0, income1 - p1TradContrib));
-    const p2TradContrib = Math.min(tradTarget / 2, income2);
-    const p2HsaContrib = Math.min(hsaTarget / 2, Math.max(0, income2 - p2TradContrib));
+    const p1TradContrib = Math.min(trad1TargetPre, income1);
+    const p1HsaContrib = Math.min(hsa1TargetPre, Math.max(0, income1 - p1TradContrib));
+    const p2TradContrib = Math.min(trad2TargetPre, income2);
+    const p2HsaContrib = Math.min(hsa2TargetPre, Math.max(0, income2 - p2TradContrib));
     const p1 = computeNetForPerson(income1, gaRate, p1TradContrib + p1HsaContrib);
     const p2 = computeNetForPerson(income2, gaRate, p2TradContrib + p2HsaContrib);
     return {
@@ -220,7 +264,7 @@ export default function ScenarioModeler() {
       gaCombined: p1.gaTax + p2.gaTax,
       netCombined: p1.net + p2.net,
     };
-  }, [income1, income2, gaRate, tradTarget, hsaTarget]);
+  }, [income1, income2, gaRate, trad1TargetPre, trad2TargetPre, hsa1TargetPre, hsa2TargetPre]);
 
   // Live mortgage snapshot (at purchase), shown in the House panel
   const mortgageSnapshot = useMemo(() => computeMortgageSnapshot({
@@ -237,7 +281,10 @@ export default function ScenarioModeler() {
       startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge,
       kidsOn, numKids, infantCost, infantYears, laterCost, kidsStartYear, kidsDuration,
       trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0,
-      tradTarget, rothTarget, hsaTarget, employerMatchPct, employerMatchCapPct,
+      trad1TargetPre, trad1TargetPost, trad2TargetPre, trad2TargetPost,
+      roth1TargetPre, roth1TargetPost, roth2TargetPre, roth2TargetPost,
+      hsa1TargetPre, hsa1TargetPost, hsa2TargetPre, hsa2TargetPost,
+      employerMatchPct, employerMatchCapPct,
       planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
       uninsuredOn, medCostPerAdult, numUninsuredAdults,
     };
@@ -276,7 +323,10 @@ export default function ScenarioModeler() {
       equityAtHorizon: housingByYear[horizon].equity,
     };
   }, [startAge, income1, income2, gaRate, expenses, growthRate, horizon, penaltyFreeAge, kidsOn, numKids, infantCost, infantYears, laterCost,
-      kidsStartYear, kidsDuration, trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0, tradTarget, rothTarget, hsaTarget,
+      kidsStartYear, kidsDuration, trad0, roth0, rothBasis0, taxable0, taxableBasis0, cash0, hsa0,
+      trad1TargetPre, trad1TargetPost, trad2TargetPre, trad2TargetPost,
+      roth1TargetPre, roth1TargetPost, roth2TargetPre, roth2TargetPost,
+      hsa1TargetPre, hsa1TargetPost, hsa2TargetPre, hsa2TargetPost,
       employerMatchPct, employerMatchCapPct, inflationRate, planningEndAge, swrAdjust, ladderOn, convertPerPerson, seasoningYears,
       houseOn, housePrice, downPaymentPct, mortgageRate, loanTermYears, propertyTaxRate, insMaintPct,
       currentHousingCost, appreciationRate, houseYear, uninsuredOn, medCostPerAdult, numUninsuredAdults, scenarios]);
@@ -391,11 +441,32 @@ export default function ScenarioModeler() {
               </div>
 
               <div>
-                <GroupHeader icon={<Wallet size={13} />}>Contribution targets / yr</GroupHeader>
+                <GroupHeader icon={<Wallet size={13} />}>Contribution targets / yr — pre-downshift</GroupHeader>
                 <div className={styles.fieldStack}>
-                  <Field label="Traditional" value={tradTarget} onChange={setTradTarget} min={0} max={100000} step={1000} prefix="$" />
-                  <Field label="Roth" value={rothTarget} onChange={setRothTarget} min={0} max={40000} step={1000} prefix="$" />
-                  <Field label="HSA" value={hsaTarget} onChange={setHsaTarget} min={0} max={20000} step={500} prefix="$" />
+                  <Field label={`${p1} Traditional`} value={trad1TargetPre} onChange={setTrad1TargetPre} min={0} max={50000} step={1000} prefix="$" hint="This person's own IRS elective-deferral limit while still on full income. Capped each year at that person's actual gross." />
+                  <Field label={`${p1} Roth`} value={roth1TargetPre} onChange={setRoth1TargetPre} min={0} max={15000} step={500} prefix="$" hint="This person's own IRA/Roth target. Filled from whatever household cashflow surplus remains after expenses." />
+                  <Field label={`${p1} HSA`} value={hsa1TargetPre} onChange={setHsa1TargetPre} min={0} max={10000} step={250} prefix="$" />
+                  <Field label={`${p2} Traditional`} value={trad2TargetPre} onChange={setTrad2TargetPre} min={0} max={50000} step={1000} prefix="$" />
+                  <Field label={`${p2} Roth`} value={roth2TargetPre} onChange={setRoth2TargetPre} min={0} max={15000} step={500} prefix="$" />
+                  <Field label={`${p2} HSA`} value={hsa2TargetPre} onChange={setHsa2TargetPre} min={0} max={10000} step={250} prefix="$" />
+                </div>
+              </div>
+
+              <div>
+                <GroupHeader icon={<Wallet size={13} />}>Contribution targets / yr — post-downshift</GroupHeader>
+                <div className={styles.fieldStack}>
+                  <Field label={`${p1} Traditional`} value={trad1TargetPost} onChange={setTrad1TargetPost} min={0} max={50000} step={1000} prefix="$" hint="Applies once this person is off full income — downshifted or fully retired. Often lower than the pre-downshift target since a reduced or zero salary can't fund the same deferral, or MAGI drops enough to favor Roth instead." />
+                  <Field label={`${p1} Roth`} value={roth1TargetPost} onChange={setRoth1TargetPost} min={0} max={15000} step={500} prefix="$" hint="Applies once this person is off full income. Lower earned income during this window often means less to contribute — but a lower MAGI can also newly qualify for direct Roth IRA contributions this person didn't qualify for at full salary." />
+                  <Field label={`${p1} HSA`} value={hsa1TargetPost} onChange={setHsa1TargetPost} min={0} max={10000} step={250} prefix="$" />
+                  <Field label={`${p2} Traditional`} value={trad2TargetPost} onChange={setTrad2TargetPost} min={0} max={50000} step={1000} prefix="$" />
+                  <Field label={`${p2} Roth`} value={roth2TargetPost} onChange={setRoth2TargetPost} min={0} max={15000} step={500} prefix="$" />
+                  <Field label={`${p2} HSA`} value={hsa2TargetPost} onChange={setHsa2TargetPost} min={0} max={10000} step={250} prefix="$" />
+                </div>
+              </div>
+
+              <div>
+                <GroupHeader icon={<Wallet size={13} />}>Plan settings</GroupHeader>
+                <div className={styles.fieldStack}>
                   <Field label="Employer match rate" value={employerMatchPct} onChange={setEmployerMatchPct} min={0} max={100} step={5} suffix="%" />
                   <Field label="Match capped at" value={employerMatchCapPct} onChange={setEmployerMatchCapPct} min={0} max={15} step={0.5} suffix="% of pay" hint="The employer match ceiling as a percent of that person's pay. Set high if your plan matches up to the IRS limit rather than a percentage of salary." />
                   <Field label="Inflation (erodes mortgage)" value={inflationRate} onChange={setInflationRate} min={0} max={6} step={0.1} suffix="%" hint="Used only to deflate the fixed nominal mortgage payment into real dollars. It does not inflate expenses or income — those are already in today's dollars." />
@@ -630,10 +701,15 @@ export default function ScenarioModeler() {
           tax are computed and subtracted every year, using 2026 law: single-filer federal brackets and the $16,100
           single standard deduction for each of you separately (since you're not married, each of you files as single,
           not jointly), the $184,500 Social Security wage base, 1.45% Medicare plus 0.9% Additional Medicare Tax above
-          $200,000 individually, and your Georgia rate applied to the same taxable-income base. Traditional 401k and HSA
-          contributions are pretax — they're split evenly across both incomes (each capped at that person's own gross)
-          and subtracted before federal/state tax is calculated, the same way a real paycheck works; FICA still applies
-          to full gross either way, since 401k/HSA elections don't reduce Social Security or Medicare wages. These
+          $200,000 individually, and your Georgia rate applied to the same taxable-income base. Traditional 401k, HSA, and Roth
+          contribution targets are set per person (matching how the IRS limits actually work — each person has their own
+          elective-deferral, HSA, and IRA limit) and each has a separate pre- and post-downshift target, since a person
+          who's downshifted or gone part-time often can't max a 401k on the reduced income, or newly qualifies for direct
+          Roth contributions once their own MAGI drops. Each person's own target switches the moment THEY go off full
+          income — downshift or retirement, whichever comes first — regardless of what the other person is doing.
+          Traditional and HSA contributions are pretax and capped at that person's own gross, subtracted before
+          federal/state tax is calculated, the same way a real paycheck works; FICA still applies to full gross either
+          way, since 401k/HSA elections don't reduce Social Security or Medicare wages. These
           thresholds are held flat in the model's real (inflation-adjusted) dollars, which is a reasonable approximation
           since most of them are themselves inflation-indexed by law in reality. Not modeled: state/local beyond GA,
           itemizing, credits (child tax credit, EITC), or NIIT. The net worth chart's "total" still counts a Traditional
