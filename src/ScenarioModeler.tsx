@@ -313,19 +313,19 @@ export default function ScenarioModeler() {
         </div>
 
         <div className={styles.sections}>
-          <div className={styles.panel}>
+          <div className={styles.panel} data-hint-boundary>
             <div className={styles.panelGrid}>
               <div>
                 <GroupHeader icon={<TrendingUp size={13} />}>Income &amp; expenses</GroupHeader>
                 <div className={styles.fieldStack}>
                   <Field label="Current age" value={startAge} onChange={setStartAge} min={18} max={65} step={1} />
-                  <Field label={`${p1} gross salary`} value={income1} onChange={setIncome1} min={40000} max={600000} step={5000} prefix="$" />
-                  <Field label={`${p2} gross salary`} value={income2} onChange={setIncome2} min={40000} max={600000} step={5000} prefix="$" />
-                  <Field label="GA state tax rate" value={gaRate} onChange={setGaRate} min={0} max={10} step={0.1} suffix="%" />
-                  <Field label="Living expenses (excl. housing)" value={expenses} onChange={setExpenses} min={40000} max={400000} step={2000} prefix="$" />
-                  <Field label="Expected real return" value={growthRate} onChange={setGrowthRate} min={2} max={10} step={0.5} suffix="%" />
-                  <Field label="Modeling horizon" value={horizon} onChange={setHorizon} min={10} max={40} step={1} suffix=" yrs" />
-                  <Field label="Penalty-free access age" value={penaltyFreeAge} onChange={setPenaltyFreeAge} min={50} max={65} step={1} />
+                  <Field label={`${p1} gross salary`} value={income1} onChange={setIncome1} min={40000} max={600000} step={5000} prefix="$" hint="Gross, before any taxes or deductions. The model computes take-home itself using 2026 federal brackets, FICA, and your state tax rate, filing each of you as single." />
+                  <Field label={`${p2} gross salary`} value={income2} onChange={setIncome2} min={40000} max={600000} step={5000} prefix="$" hint="Gross, before any taxes or deductions. The model computes take-home itself using 2026 federal brackets, FICA, and your state tax rate, filing each of you as single." />
+                  <Field label="GA state tax rate" value={gaRate} onChange={setGaRate} min={0} max={10} step={0.1} suffix="%" hint="A flat state income tax rate, applied to the same taxable income base as federal. Change it if you move — the model has no other state-specific logic." />
+                  <Field label="Living expenses (excl. housing)" value={expenses} onChange={setExpenses} min={40000} max={400000} step={2000} prefix="$" hint="Everything except housing: food, transport, travel, insurance, discretionary. Housing is added separately every year — current rent before a purchase, full mortgage cost after — so don't include rent or a mortgage here or it'll be counted twice." />
+                  <Field label="Expected real return" value={growthRate} onChange={setGrowthRate} min={2} max={10} step={0.5} suffix="%" hint="Inflation-adjusted, not nominal. 6% real is roughly a 8–9% nominal return minus ~2.5% inflation. Everything in this model is in today's dollars, so use the real number." />
+                  <Field label="Modeling horizon" value={horizon} onChange={setHorizon} min={10} max={40} step={1} suffix=" yrs" hint="How many years the chart covers. Separate from 'Plan through age', which is about how long your money must last and drives the safe withdrawal rate." />
+                  <Field label="Penalty-free access age" value={penaltyFreeAge} onChange={setPenaltyFreeAge} min={50} max={65} step={1} hint="When Traditional and Roth earnings become reachable without a 10% penalty — 59½ under current law. Before this age they're locked, which is what creates the bridge problem the shortfall warnings flag." />
                 </div>
               </div>
 
@@ -335,11 +335,11 @@ export default function ScenarioModeler() {
                 </div>
                 <div className={styles.fieldStack}>
                   <Field label="Number of kids" value={numKids} onChange={setNumKids} min={1} max={4} step={1} disabled={!kidsOn} />
-                  <Field label="Infant/toddler rate per kid / yr" value={infantCost} onChange={setInfantCost} min={0} max={60000} step={1000} prefix="$" disabled={!kidsOn} />
-                  <Field label="Infant rate applies until kid age" value={infantYears} onChange={setInfantYears} min={0} max={10} step={1} disabled={!kidsOn} />
-                  <Field label="School-age rate per kid / yr" value={laterCost} onChange={setLaterCost} min={0} max={40000} step={500} prefix="$" disabled={!kidsOn} />
-                  <Field label="First kid arrives in" value={kidsStartYear} onChange={setKidsStartYear} min={0} max={15} step={1} suffix=" yrs from now" disabled={!kidsOn} />
-                  <Field label="Support each kid until age" value={kidsDuration} onChange={setKidsDuration} min={1} max={30} step={1} disabled={!kidsOn} />
+                  <Field label="Infant/toddler rate per kid / yr" value={infantCost} onChange={setInfantCost} min={0} max={60000} step={1000} prefix="$" disabled={!kidsOn} hint="The expensive early years. Full-time infant/toddler center care commonly runs $15–22k/yr per child in higher cost-of-living areas." />
+                  <Field label="Infant rate applies until kid age" value={infantYears} onChange={setInfantYears} min={0} max={10} step={1} disabled={!kidsOn} hint="Measured from the child's birth, not from today. Many states offer free public pre-K starting at age 4, which is why that's a reasonable default." />
+                  <Field label="School-age rate per kid / yr" value={laterCost} onChange={setLaterCost} min={0} max={40000} step={500} prefix="$" disabled={!kidsOn} hint="Before/after-school care plus summer camp, typically $6–10k/yr. Childcare only — food, healthcare, activities, and college aren't modeled anywhere." />
+                  <Field label="First kid arrives in" value={kidsStartYear} onChange={setKidsStartYear} min={0} max={15} step={1} suffix=" yrs from now" disabled={!kidsOn} hint="Years from today. This is a point on your timeline; the two 'kid age' fields are measured from the child's birth instead." />
+                  <Field label="Support each kid until age" value={kidsDuration} onChange={setKidsDuration} min={1} max={30} step={1} disabled={!kidsOn} hint="The child's age when costs stop, not a duration from today." />
                 </div>
 
                 <div className={styles.miniSection}>
@@ -374,9 +374,9 @@ export default function ScenarioModeler() {
                 <div className={styles.fieldStackTight}>
                   <Field label="Traditional balance" value={trad0} onChange={setTrad0} min={0} max={1500000} step={10000} prefix="$" />
                   <Field label="Roth balance" value={roth0} onChange={setRoth0} min={0} max={1000000} step={5000} prefix="$" />
-                  <Field label="Roth basis (contributions)" value={rothBasis0} onChange={setRothBasis0} min={0} max={roth0} step={5000} prefix="$" />
+                  <Field label="Roth basis (contributions)" value={rothBasis0} onChange={setRothBasis0} min={0} max={roth0} step={5000} prefix="$" hint="How much of the Roth balance is your own contributions rather than growth. This matters a lot: contributions can be withdrawn tax- and penalty-free at any age, so this number is a large part of your pre-59½ runway. Growth cannot." />
                   <Field label="Taxable — invested" value={taxable0} onChange={setTaxable0} min={0} max={2000000} step={10000} prefix="$" />
-                  <Field label="Taxable — cash (money market)" value={cash0} onChange={setCash0} min={0} max={500000} step={5000} prefix="$" />
+                  <Field label="Taxable — cash (money market)" value={cash0} onChange={setCash0} min={0} max={500000} step={5000} prefix="$" hint="Assumed to yield roughly inflation, so it holds flat in real terms rather than growing. Drawn down first in a shortfall year." />
                   <Field label="HSA balance" value={hsa0} onChange={setHsa0} min={0} max={200000} step={2000} prefix="$" />
                 </div>
               </div>
@@ -388,16 +388,16 @@ export default function ScenarioModeler() {
                   <Field label="Roth" value={rothTarget} onChange={setRothTarget} min={0} max={40000} step={1000} prefix="$" />
                   <Field label="HSA" value={hsaTarget} onChange={setHsaTarget} min={0} max={20000} step={500} prefix="$" />
                   <Field label="Employer match rate" value={employerMatchPct} onChange={setEmployerMatchPct} min={0} max={100} step={5} suffix="%" />
-                  <Field label="Match capped at" value={employerMatchCapPct} onChange={setEmployerMatchCapPct} min={0} max={15} step={0.5} suffix="% of pay" />
-                  <Field label="Inflation (erodes mortgage)" value={inflationRate} onChange={setInflationRate} min={0} max={6} step={0.1} suffix="%" />
-                  <Field label="Plan through age" value={planningEndAge} onChange={setPlanningEndAge} min={70} max={105} step={1} />
-                  <Field label="SWR adjustment" value={swrAdjust} onChange={setSwrAdjust} min={-1} max={1} step={0.1} suffix=" pts" />
+                  <Field label="Match capped at" value={employerMatchCapPct} onChange={setEmployerMatchCapPct} min={0} max={15} step={0.5} suffix="% of pay" hint="The employer match ceiling as a percent of that person's pay. Set high if your plan matches up to the IRS limit rather than a percentage of salary." />
+                  <Field label="Inflation (erodes mortgage)" value={inflationRate} onChange={setInflationRate} min={0} max={6} step={0.1} suffix="%" hint="Used only to deflate the fixed nominal mortgage payment into real dollars. It does not inflate expenses or income — those are already in today's dollars." />
+                  <Field label="Plan through age" value={planningEndAge} onChange={setPlanningEndAge} min={70} max={105} step={1} hint="How long the money must last. Combined with your age, this sets the safe withdrawal rate: a 50-year horizon needs a lower rate than a 30-year one." />
+                  <Field label="SWR adjustment" value={swrAdjust} onChange={setSwrAdjust} min={-1} max={1} step={0.1} suffix=" pts" hint="Shifts the safe withdrawal rate curve in percentage points. The research genuinely disagrees — Bengen now argues 4.2% works over 50 years, Morningstar published 3.7%, and the FIRE consensus sits at 3.25–3.5%. Default (0) is the conservative middle. Try +0.7 for the optimistic case." />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className={styles.panel}>
+          <div className={styles.panel} data-hint-boundary>
             <div className={styles.toggleSpacing}>
               <Toggle label="House purchase" icon={<Home size={14} />} checked={houseOn} onChange={setHouseOn} />
             </div>
@@ -408,14 +408,14 @@ export default function ScenarioModeler() {
                 <Field label="Buying in" value={houseYear} onChange={setHouseYear} min={0} max={15} step={1} suffix=" yrs" disabled={!houseOn} />
               </div>
               <div className={styles.fieldStack}>
-                <Field label="Mortgage rate (30yr avg today ~6.7%)" value={mortgageRate} onChange={setMortgageRate} min={4} max={9} step={0.05} suffix="%" disabled={!houseOn} />
+                <Field label="Mortgage rate (30yr avg today ~6.7%)" value={mortgageRate} onChange={setMortgageRate} min={4} max={9} step={0.05} suffix="%" disabled={!houseOn} hint="Nominal rate, as quoted. The model deflates the resulting fixed payment into real dollars using your inflation assumption." />
                 <Field label="Loan term" value={loanTermYears} onChange={setLoanTermYears} min={15} max={30} step={5} suffix=" yrs" disabled={!houseOn} />
-                <Field label="Appreciation" value={appreciationRate} onChange={setAppreciationRate} min={0} max={8} step={0.5} suffix="%/yr" disabled={!houseOn} />
+                <Field label="Appreciation" value={appreciationRate} onChange={setAppreciationRate} min={0} max={8} step={0.5} suffix="%/yr" disabled={!houseOn} hint="Real appreciation, above inflation. Historical US real home appreciation is closer to ~1%/yr — 3.5% is a nominal figure and will overstate your equity if used here." />
               </div>
               <div className={styles.fieldStack}>
                 <Field label="Property tax rate" value={propertyTaxRate} onChange={setPropertyTaxRate} min={0.3} max={2.5} step={0.1} suffix="%" disabled={!houseOn} />
-                <Field label="Insurance + maintenance" value={insMaintPct} onChange={setInsMaintPct} min={0.3} max={3} step={0.1} suffix="%" disabled={!houseOn} />
-                <Field label="Current housing cost / yr (rent)" value={currentHousingCost} onChange={setCurrentHousingCost} min={0} max={80000} step={1000} prefix="$" />
+                <Field label="Insurance + maintenance" value={insMaintPct} onChange={setInsMaintPct} min={0.3} max={3} step={0.1} suffix="%" disabled={!houseOn} hint="Annual cost as a percent of current home value, so it scales as the home appreciates. 1–2% is typical." />
+                <Field label="Current housing cost / yr (rent)" value={currentHousingCost} onChange={setCurrentHousingCost} min={0} max={80000} step={1000} prefix="$" hint="What you pay for housing today. Used every year before a purchase, and for the whole projection if the house is toggled off." />
               </div>
               <div className={styles.snapshotCard} data-dim={!houseOn || undefined}>
                 <div className={`${shared.eyebrow} ${styles.snapshotHeader}`}>At purchase, per month</div>
@@ -446,25 +446,25 @@ export default function ScenarioModeler() {
             </div>
           </div>
 
-          <div className={styles.panel}>
+          <div className={styles.panel} data-hint-boundary>
             <GroupHeader icon={<GitBranch size={13} />}>Downshift scenarios</GroupHeader>
 
             <div className={styles.subsection}>
               <div className={styles.toggleSpacing}>
-                <Toggle label="Roth conversion ladder" icon={<Landmark size={14} />} checked={ladderOn} onChange={setLadderOn} accent={colors.mint} />
+                <Toggle label="Roth conversion ladder" icon={<Landmark size={14} />} checked={ladderOn} onChange={setLadderOn} accent={colors.mint} hint="Converts Traditional to Roth during low-income years, paying ordinary income tax now so the money becomes penalty-free after seasoning. This is the standard way to reach retirement money before 59½ and is usually the highest-impact lever in the model." />
               </div>
               <div className={styles.panelGridNarrow}>
-                <Field label="Convert per person / yr" value={convertPerPerson} onChange={setConvertPerPerson} min={0} max={120000} step={1000} prefix="$" disabled={!ladderOn} />
-                <Field label="Seasoning period" value={seasoningYears} onChange={setSeasoningYears} min={0} max={10} step={1} suffix=" yrs" disabled={!ladderOn} />
+                <Field label="Convert per person / yr" value={convertPerPerson} onChange={setConvertPerPerson} min={0} max={120000} step={1000} prefix="$" disabled={!ladderOn} hint="How much Traditional to convert to Roth each year before penalty-free age. Above roughly $66k per person you leave the 12% federal bracket and the rate arbitrage shrinks sharply." />
+                <Field label="Seasoning period" value={seasoningYears} onChange={setSeasoningYears} min={0} max={10} step={1} suffix=" yrs" disabled={!ladderOn} hint="How long a conversion must age before it's penalty-free — 5 years under current law. Each year's conversion carries its own clock, which is why the ladder is built annually." />
               </div>
             </div>
 
             <div className={styles.subsection}>
               <div className={styles.toggleSpacing}>
-                <Toggle label="No employer coverage after downshift" icon={<HeartPulse size={14} />} checked={uninsuredOn} onChange={setUninsuredOn} accent={colors.violet} />
+                <Toggle label="No employer coverage after downshift" icon={<HeartPulse size={14} />} checked={uninsuredOn} onChange={setUninsuredOn} accent={colors.violet} hint="Applies once neither person is still at full income. If one of you stays full-time, the household keeps employer coverage and this cost doesn't apply." />
               </div>
               <div className={styles.panelGridNarrow}>
-                <Field label="Avg. medical cost / uninsured adult / yr" value={medCostPerAdult} onChange={setMedCostPerAdult} min={0} max={15000} step={100} prefix="$" disabled={!uninsuredOn} />
+                <Field label="Avg. medical cost / uninsured adult / yr" value={medCostPerAdult} onChange={setMedCostPerAdult} min={0} max={15000} step={100} prefix="$" disabled={!uninsuredOn} hint="An average, not a budget. Averages are pulled down by people who skip care when uninsured; the real risk is the tail — one ER visit or diagnosis can run five to six figures. If you'd actually buy ACA coverage, model the premium instead." />
                 <Field label="Adults without coverage" value={numUninsuredAdults} onChange={setNumUninsuredAdults} min={0} max={4} step={1} disabled={!uninsuredOn} />
               </div>
             </div>
